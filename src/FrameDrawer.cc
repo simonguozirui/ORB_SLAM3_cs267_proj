@@ -1,7 +1,7 @@
 /**
 * This file is part of ORB-SLAM3
 *
-* Copyright (C) 2017-2020 Carlos Campos, Richard Elvira, Juan J. Gómez Rodríguez, José M.M. Montiel and Juan D. Tardós, University of Zaragoza.
+* Copyright (C) 2017-2021 Carlos Campos, Richard Elvira, Juan J. Gómez Rodríguez, José M.M. Montiel and Juan D. Tardós, University of Zaragoza.
 * Copyright (C) 2014-2016 Raúl Mur-Artal, José M.M. Montiel and Juan D. Tardós, University of Zaragoza.
 *
 * ORB-SLAM3 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
@@ -34,7 +34,35 @@ namespace ORB_SLAM3
         mImRight = cv::Mat(480,640,CV_8UC3, cv::Scalar(0,0,0));
     }
 
+<<<<<<< HEAD
     cv::Mat FrameDrawer::DrawFrame(bool bOldFeatures)
+=======
+cv::Mat FrameDrawer::DrawFrame(float imageScale)
+{
+    cv::Mat im;
+    vector<cv::KeyPoint> vIniKeys; // Initialization: KeyPoints in reference frame
+    vector<int> vMatches; // Initialization: correspondeces with reference keypoints
+    vector<cv::KeyPoint> vCurrentKeys; // KeyPoints in current frame
+    vector<bool> vbVO, vbMap; // Tracked MapPoints in current frame
+    vector<pair<cv::Point2f, cv::Point2f> > vTracks;
+    int state; // Tracking state
+    vector<float> vCurrentDepth;
+    float thDepth;
+
+    Frame currentFrame;
+    vector<MapPoint*> vpLocalMap;
+    vector<cv::KeyPoint> vMatchesKeys;
+    vector<MapPoint*> vpMatchedMPs;
+    vector<cv::KeyPoint> vOutlierKeys;
+    vector<MapPoint*> vpOutlierMPs;
+    map<long unsigned int, cv::Point2f> mProjectPoints;
+    map<long unsigned int, cv::Point2f> mMatchedInImage;
+
+    cv::Scalar standardColor(0,255,0);
+    cv::Scalar odometryColor(255,0,0);
+
+    //Copy variables within scoped mutex
+>>>>>>> 4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4
     {
         cv::Mat im;
         vector<cv::KeyPoint> vIniKeys; // Initialization: KeyPoints in reference frame
@@ -63,6 +91,7 @@ namespace ORB_SLAM3
 
             mIm.copyTo(im);
 
+<<<<<<< HEAD
             if(mState==Tracking::NOT_INITIALIZED)
             {
                 vCurrentKeys = mvCurrentKeys;
@@ -90,16 +119,56 @@ namespace ORB_SLAM3
             {
                 vCurrentKeys = mvCurrentKeys;
             }
+=======
+        if(mState==Tracking::NOT_INITIALIZED)
+        {
+            vCurrentKeys = mvCurrentKeys;
+            vIniKeys = mvIniKeys;
+            vMatches = mvIniMatches;
+            vTracks = mvTracks;
+        }
+        else if(mState==Tracking::OK)
+        {
+            vCurrentKeys = mvCurrentKeys;
+            vbVO = mvbVO;
+            vbMap = mvbMap;
+
+            currentFrame = mCurrentFrame;
+            vpLocalMap = mvpLocalMap;
+            vMatchesKeys = mvMatchedKeys;
+            vpMatchedMPs = mvpMatchedMPs;
+            vOutlierKeys = mvOutlierKeys;
+            vpOutlierMPs = mvpOutlierMPs;
+            mProjectPoints = mmProjectPoints;
+            mMatchedInImage = mmMatchedInImage;
+
+            vCurrentDepth = mvCurrentDepth;
+            thDepth = mThDepth;
+
+>>>>>>> 4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4
         }
 
+<<<<<<< HEAD
         if(im.channels()<3) //this should be always true
             cvtColor(im,im,CV_GRAY2BGR);
+=======
+    if(imageScale != 1.f)
+    {
+        int imWidth = im.cols / imageScale;
+        int imHeight = im.rows / imageScale;
+        cv::resize(im, im, cv::Size(imWidth, imHeight));
+    }
+
+    if(im.channels()<3) //this should be always true
+        cvtColor(im,im,cv::COLOR_GRAY2BGR);
+>>>>>>> 4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4
 
         //Draw
         if(state==Tracking::NOT_INITIALIZED)
         {
             for(unsigned int i=0; i<vMatches.size(); i++)
             {
+<<<<<<< HEAD
                 if(vMatches[i]>=0)
                 {
                     cv::line(im,vIniKeys[i].pt,vCurrentKeys[vMatches[i]].pt,
@@ -111,6 +180,46 @@ namespace ORB_SLAM3
 
         }
         else if(state==Tracking::OK && bOldFeatures) //TRACKING
+=======
+                cv::Point2f pt1,pt2;
+                if(imageScale != 1.f)
+                {
+                    pt1 = vIniKeys[i].pt / imageScale;
+                    pt2 = vCurrentKeys[vMatches[i]].pt / imageScale;
+                }
+                else
+                {
+                    pt1 = vIniKeys[i].pt;
+                    pt2 = vCurrentKeys[vMatches[i]].pt;
+                }
+                cv::line(im,pt1,pt2,standardColor);
+            }
+        }
+        for(vector<pair<cv::Point2f, cv::Point2f> >::iterator it=vTracks.begin(); it!=vTracks.end(); it++)
+        {
+            cv::Point2f pt1,pt2;
+            if(imageScale != 1.f)
+            {
+                pt1 = (*it).first / imageScale;
+                pt2 = (*it).second / imageScale;
+            }
+            else
+            {
+                pt1 = (*it).first;
+                pt2 = (*it).second;
+            }
+            cv::line(im,pt1,pt2, standardColor,5);
+        }
+
+    }
+    else if(state==Tracking::OK) //TRACKING
+    {
+        mnTracked=0;
+        mnTrackedVO=0;
+        const float r = 5;
+        int n = vCurrentKeys.size();
+        for(int i=0;i<n;i++)
+>>>>>>> 4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4
         {
             mnTracked=0;
             mnTrackedVO=0;
@@ -118,6 +227,7 @@ namespace ORB_SLAM3
             int n = vCurrentKeys.size();
             for(int i=0;i<n;i++)
             {
+<<<<<<< HEAD
                 if(vbVO[i] || vbMap[i])
                 {
                     cv::Point2f pt1,pt2;
@@ -167,6 +277,41 @@ namespace ORB_SLAM3
                     nTracked2++;
                 } else {
                     cv::circle(im, p_image, 2, cv::Scalar(0, 0, 255), -1);
+=======
+                cv::Point2f pt1,pt2;
+                cv::Point2f point;
+                if(imageScale != 1.f)
+                {
+                    point = vCurrentKeys[i].pt / imageScale;
+                    float px = vCurrentKeys[i].pt.x / imageScale;
+                    float py = vCurrentKeys[i].pt.y / imageScale;
+                    pt1.x=px-r;
+                    pt1.y=py-r;
+                    pt2.x=px+r;
+                    pt2.y=py+r;
+                }
+                else
+                {
+                    point = vCurrentKeys[i].pt;
+                    pt1.x=vCurrentKeys[i].pt.x-r;
+                    pt1.y=vCurrentKeys[i].pt.y-r;
+                    pt2.x=vCurrentKeys[i].pt.x+r;
+                    pt2.y=vCurrentKeys[i].pt.y+r;
+                }
+
+                // This is a match to a MapPoint in the map
+                if(vbMap[i])
+                {
+                    cv::rectangle(im,pt1,pt2,standardColor);
+                    cv::circle(im,point,2,standardColor,-1);
+                    mnTracked++;
+                }
+                else // This is match to a "visual odometry" MapPoint created in the last frame
+                {
+                    cv::rectangle(im,pt1,pt2,odometryColor);
+                    cv::circle(im,point,2,odometryColor,-1);
+                    mnTrackedVO++;
+>>>>>>> 4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4
                 }
 
                 it_match++;
@@ -182,6 +327,7 @@ namespace ORB_SLAM3
                 cv::line(im, cv::Point2f(u, v), point_im, cv::Scalar(0, 0, 255), 1);
             }
         }
+<<<<<<< HEAD
 
         cv::Mat imWithInfo;
         DrawTextInfo(im,state, imWithInfo);
@@ -278,11 +424,26 @@ namespace ORB_SLAM3
         DrawTextInfo(im,state, imWithInfo);
 
         return imWithInfo;
+=======
+>>>>>>> 4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4
     }
 
 
 
+<<<<<<< HEAD
     void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
+=======
+cv::Mat FrameDrawer::DrawRightFrame(float imageScale)
+{
+    cv::Mat im;
+    vector<cv::KeyPoint> vIniKeys; // Initialization: KeyPoints in reference frame
+    vector<int> vMatches; // Initialization: correspondeces with reference keypoints
+    vector<cv::KeyPoint> vCurrentKeys; // KeyPoints in current frame
+    vector<bool> vbVO, vbMap; // Tracked MapPoints in current frame
+    int state; // Tracking state
+
+    //Copy variables within scoped mutex
+>>>>>>> 4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4
     {
         stringstream s;
         if(nState==Tracking::NO_IMAGES_YET)
@@ -311,6 +472,7 @@ namespace ORB_SLAM3
             s << " LOADING ORB VOCABULARY. PLEASE WAIT...";
         }
 
+<<<<<<< HEAD
         int baseline=0;
         cv::Size textSize = cv::getTextSize(s.str(),cv::FONT_HERSHEY_PLAIN,1,1,&baseline);
 
@@ -319,6 +481,89 @@ namespace ORB_SLAM3
         imText.rowRange(im.rows,imText.rows) = cv::Mat::zeros(textSize.height+10,im.cols,im.type());
         cv::putText(imText,s.str(),cv::Point(5,imText.rows-5),cv::FONT_HERSHEY_PLAIN,1,cv::Scalar(255,255,255),1,8);
 
+=======
+    if(imageScale != 1.f)
+    {
+        int imWidth = im.cols / imageScale;
+        int imHeight = im.rows / imageScale;
+        cv::resize(im, im, cv::Size(imWidth, imHeight));
+    }
+
+    if(im.channels()<3) //this should be always true
+        cvtColor(im,im,cv::COLOR_GRAY2BGR);
+
+    //Draw
+    if(state==Tracking::NOT_INITIALIZED) //INITIALIZING
+    {
+        for(unsigned int i=0; i<vMatches.size(); i++)
+        {
+            if(vMatches[i]>=0)
+            {
+                cv::Point2f pt1,pt2;
+                if(imageScale != 1.f)
+                {
+                    pt1 = vIniKeys[i].pt / imageScale;
+                    pt2 = vCurrentKeys[vMatches[i]].pt / imageScale;
+                }
+                else
+                {
+                    pt1 = vIniKeys[i].pt;
+                    pt2 = vCurrentKeys[vMatches[i]].pt;
+                }
+
+                cv::line(im,pt1,pt2,cv::Scalar(0,255,0));
+            }
+        }
+    }
+    else if(state==Tracking::OK) //TRACKING
+    {
+        mnTracked=0;
+        mnTrackedVO=0;
+        const float r = 5;
+        const int n = mvCurrentKeysRight.size();
+        const int Nleft = mvCurrentKeys.size();
+
+        for(int i=0;i<n;i++)
+        {
+            if(vbVO[i + Nleft] || vbMap[i + Nleft])
+            {
+                cv::Point2f pt1,pt2;
+                cv::Point2f point;
+                if(imageScale != 1.f)
+                {
+                    point = mvCurrentKeysRight[i].pt / imageScale;
+                    float px = mvCurrentKeysRight[i].pt.x / imageScale;
+                    float py = mvCurrentKeysRight[i].pt.y / imageScale;
+                    pt1.x=px-r;
+                    pt1.y=py-r;
+                    pt2.x=px+r;
+                    pt2.y=py+r;
+                }
+                else
+                {
+                    point = mvCurrentKeysRight[i].pt;
+                    pt1.x=mvCurrentKeysRight[i].pt.x-r;
+                    pt1.y=mvCurrentKeysRight[i].pt.y-r;
+                    pt2.x=mvCurrentKeysRight[i].pt.x+r;
+                    pt2.y=mvCurrentKeysRight[i].pt.y+r;
+                }
+
+                // This is a match to a MapPoint in the map
+                if(vbMap[i + Nleft])
+                {
+                    cv::rectangle(im,pt1,pt2,cv::Scalar(0,255,0));
+                    cv::circle(im,point,2,cv::Scalar(0,255,0),-1);
+                    mnTracked++;
+                }
+                else // This is match to a "visual odometry" MapPoint created in the last frame
+                {
+                    cv::rectangle(im,pt1,pt2,cv::Scalar(255,0,0));
+                    cv::circle(im,point,2,cv::Scalar(255,0,0),-1);
+                    mnTrackedVO++;
+                }
+            }
+        }
+>>>>>>> 4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4
     }
 
     void FrameDrawer::Update(Tracking *pTracker)
@@ -327,6 +572,7 @@ namespace ORB_SLAM3
         pTracker->mImGray.copyTo(mIm);
         mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;
 
+<<<<<<< HEAD
         if(both){
             mvCurrentKeysRight = pTracker->mCurrentFrame.mvKeysRight;
             pTracker->mImRight.copyTo(mImRight);
@@ -361,6 +607,52 @@ namespace ORB_SLAM3
         //mvProjectPoints.reserve(N);
 
         if(pTracker->mLastProcessedState==Tracking::NOT_INITIALIZED)
+=======
+void FrameDrawer::Update(Tracking *pTracker)
+{
+    unique_lock<mutex> lock(mMutex);
+    pTracker->mImGray.copyTo(mIm);
+    mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;
+    mThDepth = pTracker->mCurrentFrame.mThDepth;
+    mvCurrentDepth = pTracker->mCurrentFrame.mvDepth;
+
+    if(both){
+        mvCurrentKeysRight = pTracker->mCurrentFrame.mvKeysRight;
+        pTracker->mImRight.copyTo(mImRight);
+        N = mvCurrentKeys.size() + mvCurrentKeysRight.size();
+    }
+    else{
+        N = mvCurrentKeys.size();
+    }
+
+    mvbVO = vector<bool>(N,false);
+    mvbMap = vector<bool>(N,false);
+    mbOnlyTracking = pTracker->mbOnlyTracking;
+
+    //Variables for the new visualization
+    mCurrentFrame = pTracker->mCurrentFrame;
+    mmProjectPoints = mCurrentFrame.mmProjectPoints;
+    mmMatchedInImage.clear();
+
+    mvpLocalMap = pTracker->GetLocalMapMPS();
+    mvMatchedKeys.clear();
+    mvMatchedKeys.reserve(N);
+    mvpMatchedMPs.clear();
+    mvpMatchedMPs.reserve(N);
+    mvOutlierKeys.clear();
+    mvOutlierKeys.reserve(N);
+    mvpOutlierMPs.clear();
+    mvpOutlierMPs.reserve(N);
+
+    if(pTracker->mLastProcessedState==Tracking::NOT_INITIALIZED)
+    {
+        mvIniKeys=pTracker->mInitialFrame.mvKeys;
+        mvIniMatches=pTracker->mvIniMatches;
+    }
+    else if(pTracker->mLastProcessedState==Tracking::OK)
+    {
+        for(int i=0;i<N;i++)
+>>>>>>> 4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4
         {
             mvIniKeys=pTracker->mInitialFrame.mvKeys;
             mvIniMatches=pTracker->mvIniMatches;
@@ -372,6 +664,7 @@ namespace ORB_SLAM3
                 MapPoint* pMP = pTracker->mCurrentFrame.mvpMapPoints[i];
                 if(pMP)
                 {
+<<<<<<< HEAD
                     if(!pTracker->mCurrentFrame.mvbOutlier[i])
                     {
                         if(pMP->Observations()>0)
@@ -397,6 +690,19 @@ namespace ORB_SLAM3
                         mvpOutlierMPs.push_back(pMP);
                         mvOutlierKeys.push_back(mvCurrentKeys[i]);
                     }
+=======
+                    if(pMP->Observations()>0)
+                        mvbMap[i]=true;
+                    else
+                        mvbVO[i]=true;
+
+                    mmMatchedInImage[pMP->mnId] = mvCurrentKeys[i].pt;
+                }
+                else
+                {
+                    mvpOutlierMPs.push_back(pMP);
+                    mvOutlierKeys.push_back(mvCurrentKeys[i]);
+>>>>>>> 4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4
                 }
             }
 

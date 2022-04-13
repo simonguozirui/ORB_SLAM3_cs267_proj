@@ -1,7 +1,7 @@
 /**
 * This file is part of ORB-SLAM3
 *
-* Copyright (C) 2017-2020 Carlos Campos, Richard Elvira, Juan J. Gómez Rodríguez, José M.M. Montiel and Juan D. Tardós, University of Zaragoza.
+* Copyright (C) 2017-2021 Carlos Campos, Richard Elvira, Juan J. Gómez Rodríguez, José M.M. Montiel and Juan D. Tardós, University of Zaragoza.
 * Copyright (C) 2014-2016 Raúl Mur-Artal, José M.M. Montiel and Juan D. Tardós, University of Zaragoza.
 *
 * ORB-SLAM3 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
@@ -15,6 +15,7 @@
 * You should have received a copy of the GNU General Public License along with ORB-SLAM3.
 * If not, see <http://www.gnu.org/licenses/>.
 */
+
 /******************************************************************************
 * Author:   Steffen Urban                                              *
 * Contact:  urbste@gmail.com                                          *
@@ -80,8 +81,8 @@ namespace ORB_SLAM3 {
                     mvBearingVecs.push_back(br);
 
                     //3D coordinates
-                    cv::Mat cv_pos = pMP -> GetWorldPos();
-                    point_t pos(cv_pos.at<float>(0),cv_pos.at<float>(1),cv_pos.at<float>(2));
+                    Eigen::Matrix<float,3,1> posEig = pMP -> GetWorldPos();
+                    point_t pos(posEig(0),posEig(1),posEig(2));
                     mvP3Dw.push_back(pos);
 
                     mvKeyPointIndices.push_back(i);
@@ -96,15 +97,16 @@ namespace ORB_SLAM3 {
     }
 
     //RANSAC methods
-	cv::Mat MLPnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers){
-		bNoMore = false;
+    bool MLPnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers, Eigen::Matrix4f &Tout){
+        Tout.setIdentity();
+        bNoMore = false;
 	    vbInliers.clear();
 	    nInliers=0;
 
 	    if(N<mRansacMinInliers)
 	    {
 	        bNoMore = true;
-	        return cv::Mat();
+	        return false;
 	    }
 
 	    vector<size_t> vAvailableIndices;
@@ -176,9 +178,12 @@ namespace ORB_SLAM3 {
 	                cv::Mat tcw(3,1,CV_64F,mti);
 	                Rcw.convertTo(Rcw,CV_32F);
 	                tcw.convertTo(tcw,CV_32F);
-	                mBestTcw = cv::Mat::eye(4,4,CV_32F);
-	                Rcw.copyTo(mBestTcw.rowRange(0,3).colRange(0,3));
-	                tcw.copyTo(mBestTcw.rowRange(0,3).col(3));
+                    mBestTcw.setIdentity();
+                    mBestTcw.block<3,3>(0,0) = Converter::toMatrix3f(Rcw);
+                    mBestTcw.block<3,1>(0,3) = Converter::toVector3f(tcw);
+
+                    Eigen::Matrix<double, 3, 3, Eigen::RowMajor> eigRcw(mRi[0]);
+                    Eigen::Vector3d eigtcw(mti);
 	            }
 
 	            if(Refine())
@@ -190,7 +195,8 @@ namespace ORB_SLAM3 {
 	                    if(mvbRefinedInliers[i])
 	                        vbInliers[mvKeyPointIndices[i]] = true;
 	                }
-	                return mRefinedTcw.clone();
+	                Tout = mRefinedTcw;
+	                return true;
 	            }
 
 	        }
@@ -208,11 +214,12 @@ namespace ORB_SLAM3 {
 	                if(mvbBestInliers[i])
 	                    vbInliers[mvKeyPointIndices[i]] = true;
 	            }
-	            return mBestTcw.clone();
+	            Tout = mBestTcw;
+	            return true;
 	        }
 	    }
 
-	    return cv::Mat();
+	    return false;
 	}
 
 	void MLPnPsolver::SetRansacParameters(double probability, int minInliers, int maxIterations, int minSet, float epsilon, float th2){
@@ -332,12 +339,16 @@ namespace ORB_SLAM3 {
             cv::Mat tcw(3,1,CV_64F,mti);
             Rcw.convertTo(Rcw,CV_32F);
             tcw.convertTo(tcw,CV_32F);
-            mRefinedTcw = cv::Mat::eye(4,4,CV_32F);
-            Rcw.copyTo(mRefinedTcw.rowRange(0,3).colRange(0,3));
-            tcw.copyTo(mRefinedTcw.rowRange(0,3).col(3));
+            mRefinedTcw.setIdentity();
+
+            mRefinedTcw.block<3,3>(0,0) = Converter::toMatrix3f(Rcw);
+            mRefinedTcw.block<3,1>(0,3) = Converter::toVector3f(tcw);
+
+            Eigen::Matrix<double, 3, 3, Eigen::RowMajor> eigRcw(mRi[0]);
+            Eigen::Vector3d eigtcw(mti);
+
             return true;
         }
-
         return false;
     }
 
@@ -369,8 +380,6 @@ namespace ORB_SLAM3 {
 
         Eigen::Matrix3d planarTest = points3 * points3.transpose();
         Eigen::FullPivHouseholderQR<Eigen::Matrix3d> rankTest(planarTest);
-        //int r, c;
-        //double minEigenVal = abs(eigen_solver.eigenvalues().real().minCoeff(&r, &c));
         Eigen::Matrix3d eigenRot;
         eigenRot.setIdentity();
 
@@ -518,7 +527,6 @@ namespace ORB_SLAM3 {
         // now we treat the results differently,
         // depending on the scene (planar or not)
         ////////////////////////////////
-        //transformation_t T_final;
         rotation_t Rout;
         translation_t tout;
         if (planar) // planar case
@@ -529,7 +537,6 @@ namespace ORB_SLAM3 {
             tmp << 0.0, result1(0, 0), result1(1, 0),
                     0.0, result1(2, 0), result1(3, 0),
                     0.0, result1(4, 0), result1(5, 0);
-            //double scale = 1 / sqrt(tmp.col(1).norm() * tmp.col(2).norm());
             // row 3
             tmp.col(0) = tmp.col(1).cross(tmp.col(2));
             tmp.transposeInPlace();
@@ -646,8 +653,8 @@ namespace ORB_SLAM3 {
         Rout = rodrigues2rot(rodrigues_t(minx[0], minx[1], minx[2]));
         tout = translation_t(minx[3], minx[4], minx[5]);
         // result inverse as opengv uses this convention
-        result.block<3, 3>(0, 0) = Rout;//Rout.transpose();
-        result.block<3, 1>(0, 3) = tout;//-result.block<3, 3>(0, 0) * tout;
+        result.block<3, 3>(0, 0) = Rout;
+        result.block<3, 1>(0, 3) = tout;
     }
 
     Eigen::Matrix3d MLPnPsolver::rodrigues2rot(const Eigen::Vector3d &omega) {
@@ -732,7 +739,6 @@ namespace ORB_SLAM3 {
             // solve
             Eigen::LDLT<Eigen::MatrixXd> chol(A);
             dx = chol.solve(g);
-            //dx = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(g);
             // this is to prevent the solution from falling into a wrong minimum
             // if the linear estimate is spurious
             if (dx.array().abs().maxCoeff() > 5.0 || dx.array().abs().minCoeff() > 1.0)
@@ -757,7 +763,6 @@ namespace ORB_SLAM3 {
         rodrigues_t w(x[0], x[1], x[2]);
         translation_t T(x[3], x[4], x[5]);
 
-        //rotation_t R = math::cayley2rot(c);
         rotation_t R = rodrigues2rot(w);
         int ii = 0;
 
