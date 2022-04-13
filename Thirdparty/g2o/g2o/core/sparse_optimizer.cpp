@@ -374,6 +374,7 @@ namespace g2o{
     
     OptimizationAlgorithm::SolverResult result = OptimizationAlgorithm::OK;
     for (int i=0; i<iterations && ! terminate() && ok; i++){
+      // cerr << "[DEBUG] In sparse_optimizer.cpp, loop " << i << endl;
       preIteration(i);
 
       if (_computeBatchStatistics) {
@@ -396,7 +397,8 @@ namespace g2o{
         _batchStatistics[i].timeIteration = get_monotonic_time()-ts;
       }
 
-      if (verbose()){
+      // if (verbose()){
+      if (true){
         double dts = get_monotonic_time()-ts;
         cumTime += dts;
         if (! errorComputed)
@@ -405,7 +407,8 @@ namespace g2o{
           << "\t chi2= " << FIXED(activeRobustChi2())
           << "\t time= " << dts
           << "\t cumTime= " << cumTime
-          << "\t edges= " << _activeEdges.size();
+          << "\t edges= " << _activeEdges.size()
+          << "\t vertices= " << _activeVertices.size();
         _algorithm->printVerbose(cerr);
         cerr << endl;
       }

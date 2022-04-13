@@ -583,6 +583,7 @@ namespace g2o {
 
     for (std::vector<TripletEntry>::const_iterator it = entries.begin(); it != entries.end(); ++it) {
       const TripletEntry& entry = *it;
+      // Roger: octave starts index at 1
       fout << entry.r+1 << " " << entry.c+1 << " " << entry.x << std::endl;
     }
     return fout.good();

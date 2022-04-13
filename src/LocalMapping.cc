@@ -122,12 +122,16 @@ void LocalMapping::Run()
             //--
             int num_FixedKF_BA = 0;
 
+            // std::cout << "[DEBUG] In LocalMapping, check 0 " << CheckNewKeyFrames() << " " << stopRequested() << std::endl;
             if(!CheckNewKeyFrames() && !stopRequested())
             {
+                // std::cout << "[DEBUG] In LocalMapping, check 1" << std::endl;
                 if(mpAtlas->KeyFramesInMap()>2)
                 {
+                    // std::cout << "[DEBUG] In LocalMapping, check 2" << std::endl;
                     if(mbInertial && mpCurrentKeyFrame->GetMap()->isImuInitialized())
                     {
+                        // std::cout << "[DEBUG] In LocalMapping, check 3" << std::endl;
                         float dist = cv::norm(mpCurrentKeyFrame->mPrevKF->GetCameraCenter() - mpCurrentKeyFrame->GetCameraCenter()) +
                                 cv::norm(mpCurrentKeyFrame->mPrevKF->mPrevKF->GetCameraCenter() - mpCurrentKeyFrame->mPrevKF->GetCameraCenter());
 
@@ -150,6 +154,7 @@ void LocalMapping::Run()
                     }
                     else
                     {
+                        std::cout << "[DEBUG] In LocalMapping, running BA" << std::endl;
                         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
                         Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpCurrentKeyFrame->GetMap(),num_FixedKF_BA);
                         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();

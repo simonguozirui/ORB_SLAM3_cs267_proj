@@ -64,6 +64,7 @@ namespace g2o {
 
       bool solve(const SparseBlockMatrix<MatrixType>& A, double* x, double* b)
       {
+        // std::cerr << "[DEBUG] In linear_solver_dense " << A.rows() << " " << A.cols() << " " << A.blockCols().size() << std::endl;
         int n = A.cols();
         int m = A.cols();
 
@@ -92,6 +93,7 @@ namespace g2o {
               if (it->first <= (int)i) {
                 int r_size = A.rowsOfBlock(it->first);
                 H.block(r_idx, c_idx, r_size, c_size) = *(it->second);
+                // std::cerr << "[DEBUG] In linear_solver_dense " << c_idx << " " << r_idx << " " << c_size << " " << r_size << std::endl;
                 if (r_idx != c_idx) // write the lower triangular block
                   H.block(c_idx, r_idx, c_size, r_size) = it->second->transpose();
               }
@@ -100,6 +102,8 @@ namespace g2o {
 
           c_idx += c_size;
         }
+
+        // char c = getchar();
 
         // solving via Cholesky decomposition
         Eigen::VectorXd::MapType xvec(x, m);

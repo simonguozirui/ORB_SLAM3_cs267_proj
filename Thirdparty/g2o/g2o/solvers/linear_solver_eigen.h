@@ -35,9 +35,12 @@
 #include "../stuff/timeutil.h"
 
 #include "../core/eigen_types.h"
+#include "../core/matrix_structure.h"
 
 #include <iostream>
 #include <vector>
+#include <fstream>
+#include <stdio.h>
 
 namespace g2o {
 
@@ -100,6 +103,13 @@ class LinearSolverEigen: public LinearSolver<MatrixType>
         computeSymbolicDecomposition(A);
       _init = false;
 
+      // DEBUG
+      // std::cerr << "[DEBUG] In linear_solver_eigen " << A.rows() << " " << A.cols() << std::endl;
+      // A.writeOctave("/app/data/Hschur.oct", true);
+      // if(A.rows() > 50) {
+      //   char c = getchar();
+      // }
+      
       double t=get_monotonic_time();
       _cholesky.factorize(_sparseMatrix);
       if (_cholesky.info() != Eigen::Success) { // the matrix is not positive definite

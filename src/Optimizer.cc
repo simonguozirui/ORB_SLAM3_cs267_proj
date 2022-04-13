@@ -61,6 +61,7 @@ namespace ORB_SLAM3
     void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<MapPoint *> &vpMP,
                                      int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
     {
+        // cout << "[DEBUG] In BundleAdjustment" << endl;
         vector<bool> vbNotIncludedMP;
         vbNotIncludedMP.resize(vpMP.size());
 
@@ -416,6 +417,8 @@ namespace ORB_SLAM3
 
     void Optimizer::FullInertialBA(Map *pMap, int its, const bool bFixLocal, const long unsigned int nLoopId, bool *pbStopFlag, bool bInit, float priorG, float priorA, Eigen::VectorXd *vSingVal, bool *bHess)
     {
+        // cout << "[DEBUG] In Optimizer, in FullInertialBA" << endl;
+
         long unsigned int maxKFid = pMap->GetMaxKFid();
         const vector<KeyFrame*> vpKFs = pMap->GetAllKeyFrames();
         const vector<MapPoint*> vpMPs = pMap->GetAllMapPoints();
@@ -1161,6 +1164,8 @@ namespace ORB_SLAM3
 
     void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, vector<KeyFrame*> &vpNonEnoughOptKFs)
     {
+        // cout << "[DEBUG] In Optimizer, in LocalBundleAdjustment" << endl;
+
         // Local KeyFrames: First Breath Search from Current Keyframe
         list<KeyFrame*> lLocalKeyFrames;
 
@@ -1668,6 +1673,8 @@ namespace ORB_SLAM3
 
     void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap, int& num_fixedKF)
     {
+        // cout << "[DEBUG] In Optimizer, in LocalBundleAdjustment2" << endl;
+
         //cout << "LBA" << endl;
         // Local KeyFrames: First Breath Search from Current Keyframe
         list<KeyFrame*> lLocalKeyFrames;
@@ -2268,6 +2275,8 @@ namespace ORB_SLAM3
 
     void Optimizer::LocalBundleAdjustment(KeyFrame* pMainKF,vector<KeyFrame*> vpAdjustKF, vector<KeyFrame*> vpFixedKF, bool *pbStopFlag)
     {
+        // cout << "[DEBUG] In Optimizer, in LocalBundleAdjustment3" << endl;
+
         bool bShowImages = false;
 
         vector<MapPoint*> vpMPs;
@@ -2291,6 +2300,8 @@ namespace ORB_SLAM3
         set<KeyFrame*> spKeyFrameBA;
 
         Map* pCurrentMap = pMainKF->GetMap();
+
+        // std::cerr << "[DEBUG] In LocalBundleAdjustment " << vpAdjustKF.size() << " " << vpFixedKF.size() << std::endl;
 
         //set<MapPoint*> sNumObsMP;
 
@@ -2925,6 +2936,8 @@ namespace ORB_SLAM3
                                            const LoopClosing::KeyFrameAndPose &CorrectedSim3,
                                            const map<KeyFrame *, set<KeyFrame *> > &LoopConnections, const bool &bFixScale)
     {
+        // cout << "[DEBUG] In Optimizer, in OptimizeEssentialGraph0" << endl;
+
         // Setup optimizer
         g2o::SparseOptimizer optimizer;
         optimizer.setVerbose(false);
@@ -3232,6 +3245,8 @@ namespace ORB_SLAM3
     void Optimizer::OptimizeEssentialGraph(KeyFrame* pCurKF, vector<KeyFrame*> &vpFixedKFs, vector<KeyFrame*> &vpFixedCorrectedKFs,
                                            vector<KeyFrame*> &vpNonFixedKFs, vector<MapPoint*> &vpNonCorrectedMPs)
     {
+        // cout << "[DEBUG] In Optimizer, in OptimizeEssentialGraph" << endl;
+
         Verbose::PrintMess("Opt_Essential: There are " + to_string(vpFixedKFs.size()) + " KFs fixed in the merged map", Verbose::VERBOSITY_DEBUG);
         Verbose::PrintMess("Opt_Essential: There are " + to_string(vpFixedCorrectedKFs.size()) + " KFs fixed in the old map", Verbose::VERBOSITY_DEBUG);
         Verbose::PrintMess("Opt_Essential: There are " + to_string(vpNonFixedKFs.size()) + " KFs non-fixed in the merged map", Verbose::VERBOSITY_DEBUG);
@@ -3895,6 +3910,8 @@ namespace ORB_SLAM3
 
     void Optimizer::LocalInertialBA(KeyFrame *pKF, bool *pbStopFlag, Map *pMap, bool bLarge, bool bRecInit)
     {
+        // cout << "[DEBUG] In Optimizer, in LocalInertialBA" << endl;
+
         std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
         Map* pCurrentMap = pKF->GetMap();
 
@@ -4609,6 +4626,8 @@ namespace ORB_SLAM3
 
     void Optimizer::InertialOptimization(Map *pMap, Eigen::Matrix3d &Rwg, double &scale, Eigen::Vector3d &bg, Eigen::Vector3d &ba, bool bMono, Eigen::MatrixXd  &covInertial, bool bFixedVel, bool bGauss, float priorG, float priorA)
     {
+        // cout << "[DEBUG] In Optimizer, in InertialOptimization1" << endl;
+
         Verbose::PrintMess("inertial optimization", Verbose::VERBOSITY_NORMAL);
         int its = 200; // Check number of iterations
         long unsigned int maxKFid = pMap->GetMaxKFid();
@@ -4803,6 +4822,8 @@ namespace ORB_SLAM3
 
     void Optimizer::InertialOptimization(vector<KeyFrame*> vpKFs, Eigen::Vector3d &bg, Eigen::Vector3d &ba, float priorG, float priorA)
     {
+        // cout << "[DEBUG] In Optimizer, in InertialOptimization2" << endl;
+
         int its = 200; // Check number of iterations
         long unsigned int maxKFid = vpKFs[0]->GetMap()->GetMaxKFid();
 
@@ -4961,6 +4982,8 @@ namespace ORB_SLAM3
 
     void Optimizer::InertialOptimization(Map *pMap, Eigen::Matrix3d &Rwg, double &scale)
     {
+        // cout << "[DEBUG] In Optimizer, in InertialOptimization3" << endl;
+
         int its = 10;
         long unsigned int maxKFid = pMap->GetMaxKFid();
         const vector<KeyFrame*> vpKFs = pMap->GetAllKeyFrames();
@@ -5061,6 +5084,8 @@ namespace ORB_SLAM3
 
     void Optimizer::MergeInertialBA(KeyFrame* pCurrKF, KeyFrame* pMergeKF, bool *pbStopFlag, Map *pMap, LoopClosing::KeyFrameAndPose &corrPoses)
     {
+        // cout << "[DEBUG] In Optimizer, in MergeInertialBA" << endl;
+
         const int Nd = 6;
         const unsigned long maxKFid = pCurrKF->mnId;
 
@@ -6449,6 +6474,8 @@ namespace ORB_SLAM3
                                                const LoopClosing::KeyFrameAndPose &CorrectedSim3,
                                                const map<KeyFrame *, set<KeyFrame *> > &LoopConnections)
     {
+        // cout << "[DEBUG] In Optimizer, in OptimizeEssentialGraph4DoF" << endl;
+
 // Setup optimizer
         g2o::SparseOptimizer optimizer;
         optimizer.setVerbose(false);

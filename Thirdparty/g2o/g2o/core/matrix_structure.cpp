@@ -116,7 +116,7 @@ bool MatrixStructure::write(const char* filename) const
   fout << "# columns: " << cols << std::endl;
   for (vector<pair<int, int> >::const_iterator it = entries.begin(); it != entries.end(); ++it) {
     const pair<int, int>& entry = *it;
-    fout << entry.first << " " << entry.second << " 0" << std::endl; // write a constant value of 0
+    fout << entry.first + 1 << " " << entry.second + 1 << " 0" << std::endl; // write a constant value of 0
   }
 
   return fout.good();

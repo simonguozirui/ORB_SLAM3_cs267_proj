@@ -364,7 +364,6 @@ bool BlockSolver<Traits>::solve(){
     return ok;
   }
 
-  // schur thing
 
   // backup the coefficient matrix
   double t=get_monotonic_time();
@@ -442,6 +441,14 @@ bool BlockSolver<Traits>::solve(){
   if (globalStats){
     globalStats->timeSchurComplement = get_monotonic_time() - t;
   }
+
+  // schur thing
+
+  // DEBUG
+  // _Hpp->writeOctave("/app/data/Hpp.oct", true);
+  // _Hll->writeOctave("/app/data/Hll.oct", true);
+  // _Hpl->writeOctave("/app/data/Hpl.oct", false);
+  // cout << "[DEBUG] In block_solver.hpp, doing schur" << endl;
 
   t=get_monotonic_time();
   bool solvedPoses = _linearSolver->solve(*_Hschur, _x, _bschur);
