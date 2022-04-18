@@ -30,13 +30,21 @@
 #include "optimization_algorithm_levenberg.h"
 
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <thread>
 
+#include "../stuff/thread_coord.h"
 #include "../stuff/timeutil.h"
 
 #include "sparse_optimizer.h"
 #include "solver.h"
 #include "batch_stats.h"
 using namespace std;
+
+static ofstream debug_fout;
+
+extern ThreadCoord thread_coord;
 
 namespace g2o {
 
@@ -52,6 +60,18 @@ namespace g2o {
     _ni=2.;
     _levenbergIterations = 0;
     _nBad = 0;
+    string filename = "/app/data/quadratic_vs_linear.csv";
+
+    if(!debug_fout.is_open()) {
+        debug_fout.open(filename);
+    }
+    else {
+        // debug_fout << endl;
+    }
+
+    if(!debug_fout.is_open()) {
+        cerr << "Error opening file: " << filename << endl;
+    }
   }
 
   OptimizationAlgorithmLevenberg::~OptimizationAlgorithmLevenberg()
@@ -96,6 +116,8 @@ namespace g2o {
       _nBad = 0;
     }
 
+    double loopstart_t=get_monotonic_time();
+
     double rho=0;
     int& qmax = _levenbergIterations;
     qmax = 0;
@@ -131,6 +153,9 @@ namespace g2o {
       scale += 1e-3; // make sure it's non-zero :)
       rho /=  scale;
 
+      // Roger comment: if rho>0 and the last step is good, you will exit out of the loop
+      // If not, redo linear solve with larger lambda
+      // This means that the whole do-while loop is actually one step
       if (rho>0 && g2o_isfinite(tempChi)){ // last step was good
         double alpha = 1.-pow((2*rho-1),3);
         // crop lambda between minimum and maximum factors
@@ -147,6 +172,15 @@ namespace g2o {
       }
       qmax++;
     } while (rho<0 && qmax < _maxTrialsAfterFailure->value() && ! _optimizer->terminate());
+
+    double loopend_t=get_monotonic_time();
+    if(globalStats && thread_coord.local_mapping_id == std::this_thread::get_id()) {
+        // debug_fout << std::this_thread::get_id() << ", " 
+        //            << qmax << ", "
+        //            << globalStats->timeQuadraticForm << ", " 
+        //            << loopend_t - loopstart_t << endl; // << ", "
+        //            // << _solver->vectorSize() << endl;
+    }
 
     if (qmax == _maxTrialsAfterFailure->value() || rho==0)
     {

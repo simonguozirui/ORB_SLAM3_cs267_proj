@@ -457,6 +457,7 @@ bool BlockSolver<Traits>::solve(){
     globalStats->hessianPoseDimension = _Hpp->cols();
     globalStats->hessianLandmarkDimension = _Hll->cols();
     globalStats->hessianDimension = globalStats->hessianPoseDimension + globalStats->hessianLandmarkDimension;
+    // cout << "[DEBUG] In block_solver.hpp, globalStats = " << *globalStats << endl;
   }
   //cerr << "Solve [decompose and solve] = " <<  get_monotonic_time()-t << endl;
 
@@ -465,6 +466,7 @@ bool BlockSolver<Traits>::solve(){
 
   // _x contains the solution for the poses, now applying it to the landmarks to get the new part of the
   // solution;
+  t=get_monotonic_time();
   double* xp = _x;
   double* cp = _coefficients;
 
@@ -488,6 +490,12 @@ bool BlockSolver<Traits>::solve(){
   _DInvSchur->multiply(xl,cl);
   //_DInvSchur->rightMultiply(xl,cl);
   //cerr << "Solve [landmark delta] = " <<  get_monotonic_time()-t << endl;
+
+  // DEBUG
+  if (globalStats) {
+    auto timeReverseSchur = get_monotonic_time() - t;
+    // cout << "[DEBUG] In block_solver.hpp, Reverse Schur = " << timeReverseSchur << endl;
+  }
 
   return true;
 }
@@ -533,9 +541,14 @@ bool BlockSolver<Traits>::buildSystem()
   JacobianWorkspace jacobianWorkspace = _optimizer->jacobianWorkspace();
 # pragma omp parallel for default (shared) firstprivate(jacobianWorkspace) if (_optimizer->activeEdges().size() > 100)
 # endif
+  // DEBUG
+  double timeLinearOplus = 0;
+  double timeConstructQuadratic = 0;
   for (int k = 0; k < static_cast<int>(_optimizer->activeEdges().size()); ++k) {
     OptimizableGraph::Edge* e = _optimizer->activeEdges()[k];
+    double t = get_monotonic_time();
     e->linearizeOplus(jacobianWorkspace); // jacobian of the nodes' oplus (manifold)
+    t = get_monotonic_time();
     e->constructQuadraticForm();
 #  ifndef NDEBUG
     for (size_t i = 0; i < e->vertices().size(); ++i) {
@@ -550,6 +563,9 @@ bool BlockSolver<Traits>::buildSystem()
     }
 #  endif
   }
+
+  // DEBUG
+  // cout << "[DEBUG] In block_solver.hpp buildSystem(), timeLinearOplus = " << timeLinearOplus << " timeConstructQuadratic = " << timeConstructQuadratic << endl;
 
   // flush the current system in a sparse block matrix
 # ifdef G2O_OPENMP

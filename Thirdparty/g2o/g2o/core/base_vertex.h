@@ -36,6 +36,7 @@
 #include <Eigen/Cholesky>
 #include <Eigen/StdVector>
 #include <stack>
+#include <iostream>
 
 namespace g2o {
 
@@ -101,7 +102,9 @@ namespace g2o {
     //! return the current estimate of the vertex
     const EstimateType& estimate() const { return _estimate;}
     //! set the estimate for the vertex also calls updateCache()
-    void setEstimate(const EstimateType& et) { _estimate = et; updateCache();}
+    void setEstimate(const EstimateType& et) { 
+        _estimate = et; updateCache();
+    }
 
   protected:
     HessianBlockType _hessian;

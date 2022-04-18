@@ -36,7 +36,8 @@
 namespace ORB_SLAM3
 {
 
-    Verbose::eLevel Verbose::th = Verbose::VERBOSITY_NORMAL;
+    // Verbose::eLevel Verbose::th = Verbose::VERBOSITY_NORMAL;
+    Verbose::eLevel Verbose::th = Verbose::VERBOSITY_QUIET;
 
     System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
                    const bool bUseViewer, const int initFr, const string &strSequence, const string &strLoadingFile):
@@ -282,9 +283,11 @@ namespace ORB_SLAM3
             }
         }
 
-        if (mSensor == System::IMU_STEREO)
-            for(size_t i_imu = 0; i_imu < vImuMeas.size(); i_imu++)
+        if (mSensor == System::IMU_STEREO) {
+            for(size_t i_imu = 0; i_imu < vImuMeas.size(); i_imu++) {
                 mpTracker->GrabImuData(vImuMeas[i_imu]);
+            }
+        }
 
         // std::cout << "start GrabImageStereo" << std::endl;
         cv::Mat Tcw = mpTracker->GrabImageStereo(imLeft,imRight,timestamp,filename);

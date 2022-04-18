@@ -48,7 +48,7 @@ namespace g2o{
 
 
   SparseOptimizer::SparseOptimizer() :
-    _forceStopFlag(0), _verbose(false), _algorithm(0), _computeBatchStatistics(false)
+    _forceStopFlag(0), _verbose(false), _algorithm(0), _computeBatchStatistics(true)   // DEBUG
   {
     _graphActions.resize(AT_NUM_ELEMENTS);
   }
@@ -397,8 +397,7 @@ namespace g2o{
         _batchStatistics[i].timeIteration = get_monotonic_time()-ts;
       }
 
-      // if (verbose()){
-      if (true){
+      if (verbose()){
         double dts = get_monotonic_time()-ts;
         cumTime += dts;
         if (! errorComputed)

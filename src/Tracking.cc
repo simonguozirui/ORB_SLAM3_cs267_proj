@@ -1383,6 +1383,7 @@ namespace ORB_SLAM3
     mTime_NewKF_Dec = 0;
 #endif
 
+
         if (bStepByStep)
         {
             while(!mbStep)
@@ -1482,8 +1483,9 @@ namespace ORB_SLAM3
 
         if(mState==NOT_INITIALIZED)
         {
-            if(mSensor==System::STEREO || mSensor==System::RGBD || mSensor==System::IMU_STEREO)
+            if(mSensor==System::STEREO || mSensor==System::RGBD || mSensor==System::IMU_STEREO) {
                 StereoInitialization();
+            }
             else
             {
                 MonocularInitialization();
