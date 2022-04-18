@@ -48,7 +48,7 @@ namespace g2o{
 
 
   SparseOptimizer::SparseOptimizer() :
-    _forceStopFlag(0), _verbose(false), _algorithm(0), _computeBatchStatistics(false)
+    _forceStopFlag(0), _verbose(false), _algorithm(0), _computeBatchStatistics(true)
   {
     _graphActions.resize(AT_NUM_ELEMENTS);
   }
@@ -397,23 +397,24 @@ namespace g2o{
         _batchStatistics[i].timeIteration = get_monotonic_time()-ts;
       }
 
-      // if (verbose()){
-      if (true){
-        double dts = get_monotonic_time()-ts;
-        cumTime += dts;
-        if (! errorComputed)
-          computeActiveErrors();
-        cerr << "iteration= " << i
-          << "\t chi2= " << FIXED(activeRobustChi2())
-          << "\t time= " << dts
-          << "\t cumTime= " << cumTime
-          << "\t edges= " << _activeEdges.size()
-          << "\t vertices= " << _activeVertices.size();
-        _algorithm->printVerbose(cerr);
-        cerr << endl;
+      if (verbose()){
+        if (true){
+          double dts = get_monotonic_time()-ts;
+          cumTime += dts;
+          if (! errorComputed)
+            computeActiveErrors();
+          cerr << "iteration= " << i
+            << "\t chi2= " << FIXED(activeRobustChi2())
+            << "\t time= " << dts
+            << "\t cumTime= " << cumTime
+            << "\t edges= " << _activeEdges.size()
+            << "\t vertices= " << _activeVertices.size();
+          _algorithm->printVerbose(cerr);
+          cerr << endl;
+        }
+        ++cjIterations; 
+        postIteration(i);
       }
-      ++cjIterations; 
-      postIteration(i);
     }
     if (result == OptimizationAlgorithm::Fail) {
       return 0;

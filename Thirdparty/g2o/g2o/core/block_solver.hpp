@@ -441,7 +441,7 @@ bool BlockSolver<Traits>::solve(){
   if (globalStats){
     globalStats->timeSchurComplement = get_monotonic_time() - t;
   }
-
+    
   // schur thing
 
   // DEBUG
@@ -457,6 +457,8 @@ bool BlockSolver<Traits>::solve(){
     globalStats->hessianPoseDimension = _Hpp->cols();
     globalStats->hessianLandmarkDimension = _Hll->cols();
     globalStats->hessianDimension = globalStats->hessianPoseDimension + globalStats->hessianLandmarkDimension;
+
+    cout << "[DEBUG] global stats " <<  *globalStats << "\n";
   }
   //cerr << "Solve [decompose and solve] = " <<  get_monotonic_time()-t << endl;
 

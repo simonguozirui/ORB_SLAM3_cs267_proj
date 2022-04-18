@@ -240,14 +240,15 @@ void LocalMapping::Run()
             double t_Insert = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t8 - t7).count();
 
             //DEBUG--
-            /*f_lm << setprecision(6);
-            f_lm << t_procKF << ",";
-            f_lm << t_MPcull << ",";
-            f_lm << t_CheckMP << ",";
-            f_lm << t_searchNeigh << ",";
-            f_lm << t_Opt << ",";
-            f_lm << t_KF_cull << ",";
-            f_lm << setprecision(0) << num_FixedKF_BA << "\n";*/
+            cout << "[DEBUG] Overall Timing ";
+            cout << setprecision(6);
+            cout << t_procKF << ",";
+            cout << t_MPcull << ",";
+            cout << t_CheckMP << ",";
+            cout << t_searchNeigh << ",";
+            cout << t_Opt << ",";
+            cout << t_KF_cull << ",";
+            cout << setprecision(0) << num_FixedKF_BA << "\n";
             //--
 
         }
