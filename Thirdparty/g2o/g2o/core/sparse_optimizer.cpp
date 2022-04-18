@@ -48,7 +48,7 @@ namespace g2o{
 
 
   SparseOptimizer::SparseOptimizer() :
-    _forceStopFlag(0), _verbose(false), _algorithm(0), _computeBatchStatistics(true)
+    _forceStopFlag(0), _verbose(false), _algorithm(0), _computeBatchStatistics(true)   // DEBUG
   {
     _graphActions.resize(AT_NUM_ELEMENTS);
   }

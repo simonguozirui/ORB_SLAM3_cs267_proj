@@ -4498,14 +4498,16 @@ namespace ORB_SLAM3
 
         std::chrono::steady_clock::time_point t3 = std::chrono::steady_clock::now();
 
-        /*double t_const = std::chrono::duration_cast<std::chrono::duration<double> >(t1 - t0).count();
-    double t_opt = std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
-    double t_rec = std::chrono::duration_cast<std::chrono::duration<double> >(t3 - t2).count();
-    /*std::cout << " Construction time: " << t_const << std::endl;
-    std::cout << " Optimization time: " << t_opt << std::endl;
-    std::cout << " Recovery time: " << t_rec << std::endl;
-    std::cout << " Total time: " << t_const+t_opt+t_rec << std::endl;
-    std::cout << " Optimization iterations: " << opt_it << std::endl;*/
+        // DEBUG
+        double t_const = std::chrono::duration_cast<std::chrono::duration<double> >(t1 - t0).count();
+        double t_opt = std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
+        double t_rec = std::chrono::duration_cast<std::chrono::duration<double> >(t3 - t2).count();
+        std::cout << " Construction time: " << t_const << std::endl;
+        std::cout << " Optimization time: " << t_opt << std::endl;
+        std::cout << " Recovery time: " << t_rec << std::endl;
+        std::cout << " Total time: " << t_const+t_opt+t_rec << std::endl;
+        std::cout << " Optimization iterations: " << opt_it << std::endl;
+        // END DEBUG
 
     }
 

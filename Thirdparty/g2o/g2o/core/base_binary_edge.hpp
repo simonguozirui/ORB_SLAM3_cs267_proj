@@ -82,6 +82,8 @@ void BaseBinaryEdge<D, E, VertexXiType, VertexXjType>::constructQuadraticForm()
             _hessianTransposed.noalias() += B.transpose() * AtO.transpose();
           else
             _hessian.noalias() += AtO * B;
+          // std::cout << "[DEBUG] In base_binary_edge.hpp, toNotFixed A = " << A << " \nB = " << B << "\nH = " 
+            // << AtO * B << std::endl;
         }
       } 
       if (toNotFixed) {
@@ -105,6 +107,8 @@ void BaseBinaryEdge<D, E, VertexXiType, VertexXjType>::constructQuadraticForm()
             _hessianTransposed.noalias() += B.transpose() * weightedOmega * A;
           else
             _hessian.noalias() += A.transpose() * weightedOmega * B;
+          // std::cout << "[DEBUG] In base_binary_edge.hpp, fromNotFixed A = " << A << " \nB = " << B << "\nH = " 
+            // << A.transpose() * weightedOmega * B << std::endl;
         }
       } 
       if (toNotFixed) {
@@ -112,6 +116,7 @@ void BaseBinaryEdge<D, E, VertexXiType, VertexXjType>::constructQuadraticForm()
         to->A().noalias() += B.transpose() * weightedOmega * B;
       }
     }
+
 #ifdef G2O_OPENMP
     to->unlockQuadraticForm();
     from->unlockQuadraticForm();

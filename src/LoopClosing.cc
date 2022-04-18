@@ -62,6 +62,7 @@ void LoopClosing::SetLocalMapper(LocalMapping *pLocalMapper)
 void LoopClosing::Run()
 {
     mbFinished =false;
+    std::chrono::steady_clock::time_point t_laststart = std::chrono::steady_clock::now();
 
     while(1)
     {
@@ -69,6 +70,11 @@ void LoopClosing::Run()
         //----------------------------
         if(CheckNewKeyFrames())
         {
+
+            // DEBUG
+            std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+            // END DEBUG
+
             if(mpLastCurrentKF)
             {
                 mpLastCurrentKF->mvpLoopCandKFs.clear();
@@ -227,6 +233,15 @@ void LoopClosing::Run()
 
             }
             mpLastCurrentKF = mpCurrentKF;
+            
+            // DEBUG
+            std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+            double t_loopclosing = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t1 - t0).count();
+            double t_period = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t0 - t_laststart).count();
+            t_laststart = t0;
+            cout << "Loop closing: " << t_period << ", " << t_loopclosing << endl;
+            // END DEBUG
+        
         }
 
         ResetIfRequested();
@@ -235,6 +250,7 @@ void LoopClosing::Run()
             // cout << "LC: Finish requested" << endl;
             break;
         }
+        
 
         usleep(5000);
     }
@@ -2433,8 +2449,15 @@ void LoopClosing::ResetIfRequested()
     }
 }
 
+std::chrono::steady_clock::time_point t_lastglobalBA = std::chrono::steady_clock::now();
+
 void LoopClosing::RunGlobalBundleAdjustment(Map* pActiveMap, unsigned long nLoopKF)
 {
+    // DEBUG
+    cout << "[DEBUG] Starting GBA" << endl;
+    std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+    // END DEBUG
+
     Verbose::PrintMess("Starting Global Bundle Adjustment", Verbose::VERBOSITY_NORMAL);
 
     const bool bImuInit = pActiveMap->isImuInitialized();
@@ -2652,6 +2675,14 @@ void LoopClosing::RunGlobalBundleAdjustment(Map* pActiveMap, unsigned long nLoop
         mbFinishedGBA = true;
         mbRunningGBA = false;
     }
+    
+    // DEBUG
+    std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+    double t_gba = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t1 - t0).count();
+    double t_period = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t0 - t_lastglobalBA).count();
+    t_lastglobalBA = t0;
+    cout << "Global BA: " << t_period << ", " << t_gba << endl;
+    // END DEBUG
 }
 
 void LoopClosing::RequestFinish()

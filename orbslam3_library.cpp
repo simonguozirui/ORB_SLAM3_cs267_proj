@@ -521,8 +521,14 @@ bool sb_init_slam_system(SLAMBenchLibraryHelper * slam_settings)  {
 
 bool depth_ready = false, rgb_ready = false, grey_one_ready = false, grey_two_ready = false, imu_ready = false;
 
+static std::chrono::steady_clock::time_point t_lasttracking = std::chrono::steady_clock::now();
+
 bool performTracking()
 {
+    // DEBUG time here
+    std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+    // END DEBUG
+
     if (input_mode == orbslam_input_mode::rgbd) {
         pose = SLAM->TrackRGBD(*imRGB,*imD,last_frame_timestamp.ToS());
         std::cout<<"Pose in SLAMBench:"<<pose<<std::endl;
@@ -543,6 +549,16 @@ bool performTracking()
     frame_no++;
     imupoints.clear();
     imu_ready = false, depth_ready = false, rgb_ready = false, grey_one_ready = false, grey_two_ready = false;
+
+    // DEBUG
+    std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+    double t_tracking = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t1 - t0).count();
+    double t_period = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t0 - t_lasttracking).count();
+
+    t_lasttracking = t0;
+    cout << "Tracking: " << t_period << ", " << t_tracking << endl;
+    // END DEBUG
+
     return true;
 }
 bool is_cam_frame;
@@ -610,8 +626,9 @@ bool sb_update_frame (SLAMBenchLibraryHelper *slam_settings , slambench::io::SLA
 
 bool sb_process_once (SLAMBenchLibraryHelper *slam_settings)  {
     cout<<"Perform tracking from sb_process_once"<<std::endl;
-    if(!performTracking())
+    if(!performTracking()) {
         return false;
+    }
 
     SLAM->mpFrameDrawer->setState(SLAM->mpTracker->mLastProcessedState);
     if(!sb_get_tracked())

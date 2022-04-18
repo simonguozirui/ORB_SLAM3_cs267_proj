@@ -22,9 +22,13 @@
 #include "ORBmatcher.h"
 #include "Optimizer.h"
 #include "Converter.h"
+#include "../Thirdparty/g2o/g2o/stuff/thread_coord.h"
 
 #include<mutex>
 #include<chrono>
+#include <thread>
+
+extern ThreadCoord thread_coord;
 
 namespace ORB_SLAM3
 {
@@ -67,7 +71,10 @@ void LocalMapping::SetTracker(Tracking *pTracker)
 void LocalMapping::Run()
 {
 
+    thread_coord.local_mapping_id = std::this_thread::get_id();
+
     mbFinished = false;
+    std::chrono::steady_clock::time_point t_laststart = std::chrono::steady_clock::now();
 
     while(1)
     {
@@ -122,16 +129,12 @@ void LocalMapping::Run()
             //--
             int num_FixedKF_BA = 0;
 
-            // std::cout << "[DEBUG] In LocalMapping, check 0 " << CheckNewKeyFrames() << " " << stopRequested() << std::endl;
             if(!CheckNewKeyFrames() && !stopRequested())
             {
-                // std::cout << "[DEBUG] In LocalMapping, check 1" << std::endl;
                 if(mpAtlas->KeyFramesInMap()>2)
                 {
-                    // std::cout << "[DEBUG] In LocalMapping, check 2" << std::endl;
                     if(mbInertial && mpCurrentKeyFrame->GetMap()->isImuInitialized())
                     {
-                        // std::cout << "[DEBUG] In LocalMapping, check 3" << std::endl;
                         float dist = cv::norm(mpCurrentKeyFrame->mPrevKF->GetCameraCenter() - mpCurrentKeyFrame->GetCameraCenter()) +
                                 cv::norm(mpCurrentKeyFrame->mPrevKF->mPrevKF->GetCameraCenter() - mpCurrentKeyFrame->mPrevKF->GetCameraCenter());
 
@@ -154,7 +157,6 @@ void LocalMapping::Run()
                     }
                     else
                     {
-                        std::cout << "[DEBUG] In LocalMapping, running BA" << std::endl;
                         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
                         Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpCurrentKeyFrame->GetMap(),num_FixedKF_BA);
                         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
@@ -239,17 +241,29 @@ void LocalMapping::Run()
             double t_KF_cull = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t6 - t5).count();
             double t_Insert = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t8 - t7).count();
 
-            //DEBUG--
-            cout << "[DEBUG] Overall Timing ";
-            cout << setprecision(6);
-            cout << t_procKF << ",";
-            cout << t_MPcull << ",";
-            cout << t_CheckMP << ",";
-            cout << t_searchNeigh << ",";
-            cout << t_Opt << ",";
-            cout << t_KF_cull << ",";
+            
+            /*f_lm << setprecision(6);
+            f_lm << t_procKF << ",";
+            f_lm << t_MPcull << ",";
+            f_lm << t_CheckMP << ",";
+            f_lm << t_searchNeigh << ",";
+            f_lm << t_Opt << ",";
+            f_lm << t_KF_cull << ",";
+            f_lm << setprecision(0) << num_FixedKF_BA << "\n";*/
+            double t_period = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t0 - t_laststart).count();
+            t_laststart = t0;
+            double t_total = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t8 - t0).count();
+            cout << setprecision(6) << "[DEBUG] Local mapping: " << t_period 
+                 << ", " << t_total << ", ";
+            cout << t_procKF << ", ";
+            cout << t_MPcull << ", ";
+            cout << t_CheckMP << ", ";
+            cout << t_searchNeigh << ", ";
+            cout << t_Opt << ", ";
+            cout << t_KF_cull << ", ";
             cout << setprecision(0) << num_FixedKF_BA << "\n";
             //--
+
 
         }
         else if(Stop() && !mbBadImu)
