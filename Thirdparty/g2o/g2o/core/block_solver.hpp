@@ -361,6 +361,269 @@ bool BlockSolver<Traits>::updateStructure(const std::vector<HyperGraph::Vertex*>
 
 template <typename Traits>
 bool BlockSolver<Traits>::solve(){
+if(thread_coord.is_local_ba && this_thread::get_id() == thread_coord.local_mapping_id) {
+  // optimize here
+
+  //cerr << __PRETTY_FUNCTION__ << endl;
+  if (! _doSchur){
+    double t=get_monotonic_time();
+    bool ok = _linearSolver->solve(*_Hpp, _x, _b);
+    G2OBatchStatistics* globalStats = G2OBatchStatistics::globalStats();
+    if (globalStats) {
+      globalStats->timeLinearSolver = get_monotonic_time() - t;
+      globalStats->hessianDimension = globalStats->hessianPoseDimension = _Hpp->cols();
+    }
+    return ok;
+  }
+
+  // if(thread_coord.local_mapping_id == std::this_thread::get_id()) {
+  //     debug_fout << "[DEBUG] in block_solver.hpp" << endl;
+  // }
+
+  // backup the coefficient matrix
+  int omp_num_threads = thread_coord.omp_num_threads;
+  double t=get_monotonic_time();
+  if(thread_coord.local_mapping_id == std::this_thread::get_id()) {
+    thread_coord.t_loop1 = thread_coord.t_loop2 = thread_coord.t_loop3 = 0;
+    thread_coord.t_mult = vector<double>(omp_num_threads, 0);
+    thread_coord.t_sub = vector<double>(omp_num_threads, 0);
+    thread_coord.t_load = vector<double>(omp_num_threads, 0);
+    thread_coord.t_store = vector<double>(omp_num_threads, 0);
+    thread_coord.t_loop3_init = vector<double>(omp_num_threads, 0);
+    thread_coord.t_schur_load = 0;
+    thread_coord.t_overhead = vector<double>(omp_num_threads, 0);
+    thread_coord.count = vector<double>(omp_num_threads, 0);
+  }
+  omp_set_num_threads(omp_num_threads);
+
+  vector<PoseHessianType*> temp_hschur_ptrs(omp_num_threads, nullptr);
+  vector<SparseBlockMatrixCCS<PoseMatrixType>*> temp_hschurCCS_ptrs(omp_num_threads, nullptr);
+
+# pragma omp parallel for default (shared) schedule(static)
+  for(int i = 0; i < omp_num_threads; i++) {
+    temp_hschur_ptrs[i] = _Hschur->clone();
+    temp_hschur_ptrs[i]->clear();   // set to 0
+    temp_hschurCCS_ptrs[i] = new SparseBlockMatrixCCS<PoseMatrixType>(_Hschur->colBlockIndices(), _Hschur->rowBlockIndices());
+    temp_hschur_ptrs[i]->fillSparseBlockMatrixCCSTransposed(*temp_hschurCCS_ptrs[i]);
+  }
+
+
+  // _Hschur = _Hpp, but keeping the pattern of _Hschur
+  _Hschur->clear();
+  _Hpp->add(_Hschur);
+
+  //_DInvSchur->clear();
+  memset (_coefficients, 0, _sizePoses*sizeof(double));
+  double t_start_schur=get_monotonic_time();
+  double t_last_end_loop2=t_start_schur;
+// # ifdef G2O_OPENMP
+# ifdef SCHUR_OMP
+  int thread_num=0;
+# pragma omp parallel for default (shared) schedule(static)
+# endif
+  for (int landmarkIndex = 0; landmarkIndex < static_cast<int>(_Hll->blockCols().size()); ++landmarkIndex) {
+    int omp_id = omp_get_thread_num();
+
+    double t_start_loop1=get_monotonic_time();
+
+    const typename SparseBlockMatrix<LandmarkMatrixType>::IntBlockMap& marginalizeColumn = _Hll->blockCols()[landmarkIndex];
+    assert(marginalizeColumn.size() == 1 && "more than one block in _Hll column");
+
+    // calculate inverse block for the landmark
+    const LandmarkMatrixType * D = marginalizeColumn.begin()->second;
+    assert (D && D->rows()==D->cols() && "Error in landmark matrix");
+    LandmarkMatrixType& Dinv = _DInvSchur->diagonal()[landmarkIndex];
+    Dinv = D->inverse();
+
+    LandmarkVectorType  db(D->rows());
+    for (int j=0; j<D->rows(); ++j) {
+      db[j]=_b[_Hll->rowBaseOfBlock(landmarkIndex) + _sizePoses + j];
+    }
+    db=Dinv*db;
+
+    assert((size_t)landmarkIndex < _HplCCS->blockCols().size() && "Index out of bounds");
+    const typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn& landmarkColumn = _HplCCS->blockCols()[landmarkIndex];
+
+    double t_start_loop2=get_monotonic_time();
+
+    for (typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn::const_iterator it_outer = landmarkColumn.begin();
+        it_outer != landmarkColumn.end(); ++it_outer) {
+      int i1 = it_outer->row;
+
+      const PoseLandmarkMatrixType* Bi = it_outer->block;
+      assert(Bi);
+
+      PoseLandmarkMatrixType BDinv = (*Bi)*(Dinv);
+      assert(_HplCCS->rowBaseOfBlock(i1) < _sizePoses && "Index out of bounds");
+      typename PoseVectorType::MapType Bb(&_coefficients[_HplCCS->rowBaseOfBlock(i1)], Bi->rows());
+// #    ifdef G2O_OPENMP
+      # ifdef SCHUR_OMP
+            // ScopedOpenMPMutex mutexLock(&_coefficientsMutex[i1]);
+      # endif
+
+      Bb.noalias() += (*Bi)*db;
+
+      // assert(i1 >= 0 && i1 < static_cast<int>(_HschurTransposedCCS->blockCols().size()) && "Index out of bounds");
+      assert(i1 >= 0 && i1 < static_cast<int>(temp_hschurCCS_ptrs[omp_id]->blockCols().size()) && "Index out of bounds");
+      typename SparseBlockMatrixCCS<PoseMatrixType>::SparseColumn::iterator targetColumnIt = temp_hschurCCS_ptrs[omp_id]->blockCols()[i1].begin();
+
+      double t_start_accum=get_monotonic_time();
+      typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::RowBlock aux(i1, 0);
+      typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn::const_iterator it_inner = lower_bound(landmarkColumn.begin(), landmarkColumn.end(), aux);
+      for (; it_inner != landmarkColumn.end(); ++it_inner) {
+        int i2 = it_inner->row;
+        const PoseLandmarkMatrixType* Bj = it_inner->block;
+        assert(Bj); 
+        while (targetColumnIt->row < i2)
+          ++targetColumnIt;
+        assert(targetColumnIt != temp_hschurCCS_ptrs[omp_id]->blockCols()[i1].end() && targetColumnIt->row == i2 && "invalid iterator, something wrong with the matrix structure");
+        // measure comm cost
+        // double t_start_mult=get_monotonic_time();
+        auto temp = BDinv*Bj->transpose();
+        double t_end_mult=get_monotonic_time();
+        PoseMatrixType* Hi1i2 = targetColumnIt->block;//_Hschur->block(i1,i2);
+        assert(Hi1i2);
+        auto orig = *Hi1i2;
+        double t_end_load=get_monotonic_time();
+        auto res = orig + temp;
+        // double t_end_sub=get_monotonic_time();
+        (*Hi1i2).noalias() = res; // DEBUG
+        // double t_end_store=get_monotonic_time();
+
+        if(thread_coord.is_local_ba) {
+            int id = omp_get_thread_num();
+            // thread_coord.t_mult[id] += t_end_mult - t_start_mult;
+            thread_coord.t_load[id] += t_end_load - t_end_mult;
+            // thread_coord.t_sub[id] += t_end_sub - t_end_load;
+            // thread_coord.t_store[id] += t_end_store - t_end_sub;
+            // thread_coord.t_loop3_init[id] += t_end_store - t_start_loop3;
+        }
+      }
+      double t_end_accum=get_monotonic_time();
+      if(thread_coord.is_local_ba && omp_get_thread_num() == thread_num) {
+          thread_coord.t_schur_load += t_end_accum - t_start_accum;
+      }
+    }
+    double t_end_loop2=get_monotonic_time();
+    if(thread_coord.is_local_ba) {
+        int id = omp_get_thread_num();
+        if(id == thread_num) {
+            thread_coord.t_loop2 += t_end_loop2 - t_start_loop2;
+            thread_coord.t_loop1 += t_start_loop2 - t_start_loop1;
+            t_last_end_loop2 = t_end_loop2;
+        }
+        thread_coord.t_overhead[id] += t_start_loop1 - t_last_end_loop2;
+        thread_coord.count[id]++;
+    }
+  }
+
+  // do serial subtraction
+# pragma omp parallel for default (shared) schedule(static)
+  for (size_t i=0; i<_Hschur->blockCols().size(); ++i){
+      for (auto it=_Hschur->blockCols()[i].begin(); it!= _Hschur->blockCols()[i].end(); ++it){
+          PoseMatrixType* dest = it->second;
+          for(int j = 0; j < omp_num_threads; j++) {
+            PoseMatrixType* src = temp_hschur_ptrs[j]->blockCols()[i][it->first];
+            if(src == nullptr) {
+                cout << "Error: src is nullptr" << endl;
+                exit(1);
+            }
+            (*dest).noalias() -= *src;
+             
+          }
+      }
+  }
+
+  //cerr << "Solve [marginalize] = " <<  get_monotonic_time()-t << endl;
+  double t_end_schur=get_monotonic_time();
+
+  // _bschur = _b for calling solver, and not touching _b
+  memcpy(_bschur, _b, _sizePoses * sizeof(double));
+  for (int i=0; i<_sizePoses; ++i){
+    _bschur[i]-=_coefficients[i];
+  }
+
+  G2OBatchStatistics* globalStats = G2OBatchStatistics::globalStats();
+  if(globalStats && thread_coord.local_mapping_id == std::this_thread::get_id() 
+          && thread_coord.is_local_ba) {
+    // globalStats->timeSchurComplement = get_monotonic_time() - t;
+    globalStats->timeSchurComplement = t_end_schur - t_start_schur;
+  }
+
+  // schur thing
+
+  // DEBUG
+  // if(thread_coord.local_mapping_id == std::this_thread::get_id() && thread_coord.is_full_inertial_ba) {
+  //     _Hpp->writeOctave("/app/data/Hpp_fullInertialBA.oct", true);
+  //     _Hll->writeOctave("/app/data/Hll_fullInertialBA.oct", true);
+  //     _Hpl->writeOctave("/app/data/Hpl_fullInertialBA.oct", false);
+  //     _Hschur->writeOctave("/app/data/Hschur_fullInertialBA.oct", false);
+  //     debug_fout << "fullIntertialBA" << endl;
+  //     // cout << "[DEBUG] In block_solver.hpp, doing schur" << endl;
+  // }
+
+  t=get_monotonic_time();
+  bool solvedPoses = _linearSolver->solve(*_Hschur, _x, _bschur);
+  if (globalStats) {
+    globalStats->timeLinearSolver = get_monotonic_time() - t;
+    globalStats->hessianPoseDimension = _Hpp->cols();
+    globalStats->hessianLandmarkDimension = _Hll->cols();
+    globalStats->hessianDimension = globalStats->hessianPoseDimension + globalStats->hessianLandmarkDimension;
+    // debug_fout << "timeSchurComplement: " << globalStats->timeSchurComplement << "timeLinearSolver: " << globalStats->timeLinearSolver << endl;
+    // cout << "[DEBUG] In block_solver.hpp, globalStats = " << *globalStats << endl;
+  }
+  //cerr << "Solve [decompose and solve] = " <<  get_monotonic_time()-t << endl;
+
+  if (! solvedPoses)
+    return false;
+
+  // _x contains the solution for the poses, now applying it to the landmarks to get the new part of the
+  // solution;
+  t=get_monotonic_time();
+  double* xp = _x;
+  double* cp = _coefficients;
+
+  double* xl=_x+_sizePoses;
+  double* cl=_coefficients + _sizePoses;
+  double* bl=_b+_sizePoses;
+
+  // cp = -xp
+  for (int i=0; i<_sizePoses; ++i)
+    cp[i]=-xp[i];
+
+  // cl = bl
+  memcpy(cl,bl,_sizeLandmarks*sizeof(double));
+
+  // cl = bl - Bt * xp
+  //Bt->multiply(cl, cp);
+  _HplCCS->rightMultiply(cl, cp);
+
+  // xl = Dinv * cl
+  memset(xl,0, _sizeLandmarks*sizeof(double));
+  _DInvSchur->multiply(xl,cl);
+  //_DInvSchur->rightMultiply(xl,cl);
+  //cerr << "Solve [landmark delta] = " <<  get_monotonic_time()-t << endl;
+
+  // DEBUG
+  if (globalStats) {
+    auto timeReverseSchur = get_monotonic_time() - t;
+    // cout << "[DEBUG] In block_solver.hpp, Reverse Schur = " << timeReverseSchur << endl;
+  }
+
+  // deallocate temp structs
+# pragma omp parallel for default (shared) schedule(static)
+  for(int i = 0; i < omp_num_threads; i++) {
+    temp_hschur_ptrs[i]->clear(true);   // set to 0
+    temp_hschur_ptrs[i] = nullptr;
+    temp_hschurCCS_ptrs[i] = nullptr;
+  }
+
+
+
+  return true;
+}
+else {
+
   //cerr << __PRETTY_FUNCTION__ << endl;
   if (! _doSchur){
     double t=get_monotonic_time();
@@ -575,6 +838,7 @@ omp_set_num_threads(omp_num_threads);
   }
 
   return true;
+}
 }
 
 
