@@ -27,8 +27,10 @@
 #include<mutex>
 #include<chrono>
 #include <thread>
+#include <ostream>
 
 extern ThreadCoord thread_coord;
+extern std::ofstream debug_fout;
 
 namespace ORB_SLAM3
 {
@@ -153,13 +155,20 @@ void LocalMapping::Run()
                         }
 
                         bool bLarge = ((mpTracker->GetMatchesInliers()>75)&&mbMonocular)||((mpTracker->GetMatchesInliers()>100)&&!mbMonocular);
+                        // debug_fout << "[DEBUG] Running intertial BA" << endl;
                         Optimizer::LocalInertialBA(mpCurrentKeyFrame, &mbAbortBA, mpCurrentKeyFrame->GetMap(), bLarge, !mpCurrentKeyFrame->GetMap()->GetIniertialBA2());
+                        // debug_fout << "[DEBUG] End running intertial BA" << endl;
                     }
                     else
                     {
+                        thread_coord.is_local_ba = true;
+                        // debug_fout << "[DEBUG] Running local BA" << endl;
                         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
                         Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpCurrentKeyFrame->GetMap(),num_FixedKF_BA);
                         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+                        double t_ba = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(end - begin).count();
+                        // debug_fout << "[DEBUG] End local BA, time = " << t_ba << endl;
+                        thread_coord.is_local_ba = false;
                     }
                 }
 
@@ -253,15 +262,15 @@ void LocalMapping::Run()
             double t_period = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t0 - t_laststart).count();
             t_laststart = t0;
             double t_total = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t8 - t0).count();
-            cout << setprecision(6) << "Local mapping: " << t_period 
-                 << ", " << t_total << ", ";
-            cout << t_procKF << ", ";
-            cout << t_MPcull << ", ";
-            cout << t_CheckMP << ", ";
-            cout << t_searchNeigh << ", ";
-            cout << t_Opt << ", ";
-            cout << t_KF_cull << ", ";
-            cout << setprecision(0) << num_FixedKF_BA << "\n";
+            // debug_fout << setprecision(6) << "Local mapping: " << t_period 
+            //      << ", " << t_total << ", "
+            //      << t_procKF << ", "
+            //      << t_MPcull << ", "
+            //      << t_CheckMP << ", "
+            //      << t_searchNeigh << ", "
+            //      << t_Opt << ", "
+            //      << t_KF_cull << ", "
+            //      << setprecision(6) << num_FixedKF_BA << "\n";
             //--
 
 
@@ -1322,9 +1331,13 @@ void LocalMapping::InitializeIMU(float priorG, float priorA, bool bFIBA)
 
     mInitTime = mpTracker->mLastFrame.mTimeStamp-vpKF.front()->mTimeStamp;
 
+    thread_coord.is_full_inertial_ba = true;
+    // debug_fout << "[DEBUG] Running inertial optimization" << endl;
     std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
     Optimizer::InertialOptimization(mpAtlas->GetCurrentMap(), mRwg, mScale, mbg, mba, mbMonocular, infoInertial, false, false, priorG, priorA);
     std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+    // debug_fout << "[DEBUG] End running inertial optimization" << endl;
+    thread_coord.is_inertial_opt = false;
 
     /*cout << "scale after inertial-only optimization: " << mScale << endl;
     cout << "bg after inertial-only optimization: " << mbg << endl;
@@ -1366,10 +1379,14 @@ void LocalMapping::InitializeIMU(float priorG, float priorA, bool bFIBA)
     std::chrono::steady_clock::time_point t4 = std::chrono::steady_clock::now();
     if (bFIBA)
     {
+        thread_coord.is_full_inertial_ba = true;
+        // debug_fout << "[DEBUG] Running full intertial BA" << endl;
         if (priorA!=0.f)
             Optimizer::FullInertialBA(mpAtlas->GetCurrentMap(), 100, false, 0, NULL, true, priorG, priorA);
         else
             Optimizer::FullInertialBA(mpAtlas->GetCurrentMap(), 100, false, 0, NULL, false);
+        // debug_fout << "[DEBUG] End running full intertial BA" << endl;
+        thread_coord.is_full_inertial_ba = false;
     }
 
     std::chrono::steady_clock::time_point t5 = std::chrono::steady_clock::now();

@@ -55,6 +55,15 @@ IF(OPENMP_FOUND AND G2O_USE_OPENMP)
   MESSAGE(STATUS "Compiling with ${g2o_C_FLAGS}")
 ENDIF(OPENMP_FOUND AND G2O_USE_OPENMP)
 
+IF(OPENMP_FOUND AND USE_SCHUR_OMP)
+  SET(SCHUR_OMP 1)
+  add_definitions(-DSCHUR_OMP=1)
+  SET(g2o_C_FLAGS "${g2o_C_FLAGS} ${OpenMP_C_FLAGS}")
+  SET(g2o_CXX_FLAGS "${g2o_CXX_FLAGS} -DEIGEN_DONT_PARALLELIZE ${OpenMP_CXX_FLAGS}")
+  MESSAGE(STATUS "Schur OMP")
+  MESSAGE(STATUS "Compiling with ${g2o_C_FLAGS} ${g2o_CXX_FLAGS}")
+ENDIF(OPENMP_FOUND AND USE_SCHUR_OMP)
+
 # Compiler specific options for gcc
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
 SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -march=native")
@@ -178,4 +187,6 @@ g2o/stuff/os_specific.h
 g2o/stuff/string_tools.cpp
 g2o/stuff/property.cpp       
 g2o/stuff/property.h       
+g2o/stuff/thread_coord.h       
+g2o/stuff/thread_coord.cpp
 )

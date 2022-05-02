@@ -43,6 +43,11 @@ using namespace cv;
 #define CV_LOAD_IMAGE_UNCHANGED IMREAD_UNCHANGED
 #endif
 
+#include "Thirdparty/g2o/g2o/stuff/thread_coord.h"
+#include <fstream>
+
+extern std::ofstream debug_fout;
+
 namespace ORB_SLAM3
 {
 
@@ -1493,7 +1498,6 @@ namespace ORB_SLAM3
             }
 
         optimizer.initializeOptimization();
-
         int numPerform_it = optimizer.optimize(5);
 
         bool bDoMore= true;
@@ -1673,6 +1677,7 @@ namespace ORB_SLAM3
 
     void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap, int& num_fixedKF)
     {
+        std::chrono::steady_clock::time_point start_localBA = std::chrono::steady_clock::now();
         // cout << "[DEBUG] In Optimizer, in LocalBundleAdjustment2" << endl;
 
         //cout << "LBA" << endl;
@@ -1994,9 +1999,14 @@ namespace ORB_SLAM3
 
         optimizer.initializeOptimization();
 
+        // std::cout << "[DEBUG] local BA start optimization" << std::endl;
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         optimizer.optimize(5);
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point t_2opt_begin = end;
+        std::chrono::steady_clock::time_point t_2opt_end = end;
+        // std::cout << "[DEBUG] local BA end optimization" << std::endl;
+
 
         //std::cout << "LBA time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
         //std::cout << "Keyframes: " << nKFs << " --- MapPoints: " << nPoints << " --- Edges: " << nEdges << endl;
@@ -2069,7 +2079,9 @@ namespace ORB_SLAM3
             // Optimize again without the outliers
             //Verbose::PrintMess("LM-LBA: second optimization", Verbose::VERBOSITY_DEBUG);
             optimizer.initializeOptimization(0);
+            t_2opt_begin = std::chrono::steady_clock::now();
             optimizer.optimize(10);
+            t_2opt_end = std::chrono::steady_clock::now();
 
         }
 
@@ -2136,9 +2148,12 @@ namespace ORB_SLAM3
 
         }
 
+        std::chrono::steady_clock::time_point t_before_lock = std::chrono::steady_clock::now();
 
         // Get Map Mutex
         unique_lock<mutex> lock(pMap->mMutexMapUpdate);
+
+        std::chrono::steady_clock::time_point t_start_end = std::chrono::steady_clock::now();
 
         if(!vToErase.empty())
         {
@@ -2271,6 +2286,19 @@ namespace ORB_SLAM3
 
         // TODO Check this changeindex
         pMap->IncreaseChangeIndex();
+
+        std::chrono::steady_clock::time_point end_localBA = std::chrono::steady_clock::now();
+
+        double t_init = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(begin - start_localBA).count();
+        double t_opt = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(end - begin).count();
+        double t_2opt = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t_2opt_end - t_2opt_begin).count();
+        double t_post_opt = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t_before_lock - end).count();
+        double t_wait_lock = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t_start_end - t_before_lock).count();
+        double t_end = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(end_localBA - t_start_end).count();
+
+        // debug_fout << "[DEBUG] In Optimizer.cc LocalBA, t_init = " << t_init << ", t_opt = " << t_opt << ", t_end = " << t_end << endl;
+        // debug_fout << t_init << ", " << t_opt << ", " << t_2opt << ", " << t_post_opt << ", " << t_wait_lock << ", " << t_end << endl;
+
     }
 
     void Optimizer::LocalBundleAdjustment(KeyFrame* pMainKF,vector<KeyFrame*> vpAdjustKF, vector<KeyFrame*> vpFixedKF, bool *pbStopFlag)
@@ -4765,12 +4793,11 @@ namespace ORB_SLAM3
         // Compute error for different scales
         std::set<g2o::HyperGraph::Edge*> setEdges = optimizer.edges();
 
-        std::cout << "start optimization" << std::endl;
         optimizer.setVerbose(false);
         optimizer.initializeOptimization();
         optimizer.optimize(its);
 
-        std::cout << "end optimization" << std::endl;
+        // std::cout << "end optimization" << std::endl;
 
         scale = VS->estimate();
 

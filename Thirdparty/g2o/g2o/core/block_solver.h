@@ -33,6 +33,8 @@
 #include "openmp_mutex.h"
 #include "../../config.h"
 
+#define SCHUR_OMP
+
 namespace g2o {
   using namespace Eigen;
 
@@ -161,7 +163,8 @@ namespace g2o {
       std::vector<PoseVectorType, Eigen::aligned_allocator<PoseVectorType> > _diagonalBackupPose;
       std::vector<LandmarkVectorType, Eigen::aligned_allocator<LandmarkVectorType> > _diagonalBackupLandmark;
 
-#    ifdef G2O_OPENMP
+// #    ifdef G2O_OPENMP
+#    ifdef SCHUR_OMP
       std::vector<OpenMPMutex> _coefficientsMutex;
 #    endif
 
@@ -172,6 +175,7 @@ namespace g2o {
 
       int _numPoses, _numLandmarks;
       int _sizePoses, _sizeLandmarks;
+      
   };
 
 
@@ -183,6 +187,7 @@ namespace g2o {
   typedef BlockSolver< BlockSolverTraits<7, 3> > BlockSolver_7_3;  
   // 2Dof landmarks 3Dof poses
   typedef BlockSolver< BlockSolverTraits<3, 2> > BlockSolver_3_2;
+  
 
 } // end namespace
 

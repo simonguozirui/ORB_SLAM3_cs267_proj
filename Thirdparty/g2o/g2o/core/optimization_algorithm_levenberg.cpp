@@ -42,9 +42,8 @@
 #include "batch_stats.h"
 using namespace std;
 
-static ofstream debug_fout;
-
 extern ThreadCoord thread_coord;
+extern ofstream debug_fout;
 
 namespace g2o {
 
@@ -60,18 +59,19 @@ namespace g2o {
     _ni=2.;
     _levenbergIterations = 0;
     _nBad = 0;
-    string filename = "/app/data/quadratic_vs_linear.csv";
+    // string filename = "/app/data/debug_out.csv";
 
-    if(!debug_fout.is_open()) {
-        debug_fout.open(filename);
-    }
-    else {
-        // debug_fout << endl;
-    }
+    // if(!debug_fout.is_open()) {
+    //     debug_fout.open(filename);
+    // }
+    // else {
+    //     // debug_fout << endl;
+    // }
 
-    if(!debug_fout.is_open()) {
-        cerr << "Error opening file: " << filename << endl;
-    }
+    // if(!debug_fout.is_open()) {
+    //     cerr << "Error opening file: " << filename << endl;
+    //     exit(1);
+    // }
   }
 
   OptimizationAlgorithmLevenberg::~OptimizationAlgorithmLevenberg()
@@ -107,6 +107,9 @@ namespace g2o {
     _solver->buildSystem();
     if (globalStats) {
       globalStats->timeQuadraticForm = get_monotonic_time()-t;
+      // DEBUG
+      globalStats->timeLinearSolution = 0;  // reset linear solution counter
+      globalStats->timeUpdate = 0;
     }
 
     // core part of the Levenbarg algorithm
@@ -130,13 +133,14 @@ namespace g2o {
       // update the diagonal of the system matrix
       _solver->setLambda(_currentLambda, true);
       bool ok2 = _solver->solve();
+      double timeOneIter = get_monotonic_time() - t;
       if (globalStats) {
-        globalStats->timeLinearSolution+=get_monotonic_time()-t;
+        globalStats->timeLinearSolution+=timeOneIter;
         t=get_monotonic_time();
       }
       _optimizer->update(_solver->x());
       if (globalStats) {
-        globalStats->timeUpdate = get_monotonic_time()-t;
+        globalStats->timeUpdate += get_monotonic_time()-t;
       }
 
       // restore the diagonal
@@ -170,17 +174,45 @@ namespace g2o {
         _ni*=2;
         _optimizer->pop(); // restore the last state before trying to optimize
       }
+      if(globalStats && thread_coord.local_mapping_id == std::this_thread::get_id()
+              && thread_coord.is_local_ba) {
+          debug_fout << std::this_thread::get_id() << ", " 
+              << qmax << ", " 
+              << _solver->vectorSize() << ", " 
+              << timeOneIter << ", " 
+              << globalStats->timeLinearSolution << ", " 
+              << globalStats->timeSchurComplement << ", " 
+              << globalStats->timeUpdate << ", "
+              << globalStats->timeNumericDecomposition << ", "
+              << thread_coord.t_loop1 << ", "
+              << thread_coord.t_loop2 << ", "
+              << thread_coord.t_loop3 << ", "
+              << globalStats->timeQuadraticForm << ", "
+              << thread_coord.t_schur_load << ", "
+              << thread_coord.t_overhead[0] << ", ";
+              for(int i = 0; i < thread_coord.omp_num_threads; i++) {
+                  debug_fout << thread_coord.t_mult[i] << ", "
+                             << thread_coord.t_sub[i] << ", "
+                             << thread_coord.t_load[i] << ", "
+                             << thread_coord.t_store[i] << ", "
+                             << thread_coord.t_overhead[i] << ", "
+                             << thread_coord.count[i] << ", "
+                             << thread_coord.t_loop3_init[i] << ", ";
+              }
+              debug_fout << endl;
+      }
+
       qmax++;
     } while (rho<0 && qmax < _maxTrialsAfterFailure->value() && ! _optimizer->terminate());
 
     double loopend_t=get_monotonic_time();
-    if(globalStats && thread_coord.local_mapping_id == std::this_thread::get_id()) {
-        // debug_fout << std::this_thread::get_id() << ", " 
-        //            << qmax << ", "
-        //            << globalStats->timeQuadraticForm << ", " 
-        //            << loopend_t - loopstart_t << endl; // << ", "
-        //            // << _solver->vectorSize() << endl;
-    }
+    // if(globalStats && thread_coord.local_mapping_id == std::this_thread::get_id()) {
+    //     debug_fout << std::this_thread::get_id() << ", " 
+    //                << qmax << ", "
+    //                << globalStats->timeQuadraticForm << ", " 
+    //                << loopend_t - loopstart_t << ", " 
+    //     	   << _currentLambda << ", " << _solver->vectorSize() << ", " << globalStats->timeLinearSolution << ", " << globalStats->timeUpdate << endl; // << ", "
+    // }
 
     if (qmax == _maxTrialsAfterFailure->value() || rho==0)
     {

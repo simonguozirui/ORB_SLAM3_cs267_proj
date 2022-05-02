@@ -30,8 +30,14 @@
 #include "optimizable_graph.h"
 #include "sparse_optimizer.h"
 
+#include "../stuff/thread_coord.h"
+
+#include <fstream>
 #include <iostream>
 using namespace std;
+
+extern ThreadCoord thread_coord;
+extern ofstream debug_fout;
 
 namespace g2o {
 
@@ -44,7 +50,17 @@ namespace g2o {
 
   OptimizationAlgorithmWithHessian::~OptimizationAlgorithmWithHessian()
   {
+    // if(thread_coord.local_mapping_id == std::this_thread::get_id()) {
+    //     // debug_fout << "[DEBUG] In opt hessian, x size = " << _solver->vectorSize() << endl;
+    //     if(_solver->vectorSize() > 200) {   // don't delete solver yet if old vector size is large
+    //         // debug_fout << "[DEBUG] In opt hessian, not deleting" << endl;
+    //         thread_coord.solver_bak = _solver;
+    //         _solver = 0;
+    //         return;
+    //     }
+    // }
     delete _solver;
+    _solver = 0;
   }
 
   bool OptimizationAlgorithmWithHessian::init(bool online)
