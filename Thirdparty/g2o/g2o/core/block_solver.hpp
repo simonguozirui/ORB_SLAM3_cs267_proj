@@ -518,7 +518,7 @@ if(thread_coord.is_local_ba && this_thread::get_id() == thread_coord.local_mappi
   }
 
   // do serial subtraction
-# pragma omp parallel for default (shared) schedule(static)
+// # pragma omp parallel for default (shared) schedule(static)
   for (size_t i=0; i<_Hschur->blockCols().size(); ++i){
       for (auto it=_Hschur->blockCols()[i].begin(); it!= _Hschur->blockCols()[i].end(); ++it){
           PoseMatrixType* dest = it->second;
