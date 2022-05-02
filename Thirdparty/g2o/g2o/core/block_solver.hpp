@@ -462,11 +462,11 @@ omp_set_num_threads(omp_num_threads);
         // measure comm cost
         // double t_start_mult=get_monotonic_time();
         auto temp = BDinv*Bj->transpose();
-        // double t_end_mult=get_monotonic_time();
+        double t_end_mult=get_monotonic_time();
         PoseMatrixType* Hi1i2 = targetColumnIt->block;//_Hschur->block(i1,i2);
         assert(Hi1i2);
         auto orig = *Hi1i2;
-        // double t_end_load=get_monotonic_time();
+        double t_end_load=get_monotonic_time();
         auto res = orig - temp;
         // double t_end_sub=get_monotonic_time();
         (*Hi1i2).noalias() = res; // DEBUG
@@ -475,7 +475,7 @@ omp_set_num_threads(omp_num_threads);
         if(thread_coord.is_local_ba) {
             int id = omp_get_thread_num();
             // thread_coord.t_mult[id] += t_end_mult - t_start_mult;
-            // thread_coord.t_load[id] += t_end_load - t_end_mult;
+            thread_coord.t_load[id] += t_end_load - t_end_mult;
             // thread_coord.t_sub[id] += t_end_sub - t_end_load;
             // thread_coord.t_store[id] += t_end_store - t_end_sub;
             // thread_coord.t_loop3_init[id] += t_end_store - t_start_loop3;

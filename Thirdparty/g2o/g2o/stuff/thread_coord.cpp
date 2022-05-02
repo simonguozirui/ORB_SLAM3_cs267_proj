@@ -5,4 +5,4 @@
 using namespace std;
 
 ThreadCoord thread_coord;
-ofstream debug_fout(thread_coord.file_name);
+ofstream debug_fout(thread_coord.filename);

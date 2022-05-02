@@ -22,7 +22,7 @@ struct ThreadCoord {
     bool is_local_ba = false;
     bool is_inertial_opt = false;
 
-    std::string filename = "/app/data/omp_" + omp_num_threads + "_load.csv";
+    std::string filename = "/app/data/omp_" + std::to_string(omp_num_threads) + "_load.csv";
 };
 
 #endif // THREAD_COORD_H
