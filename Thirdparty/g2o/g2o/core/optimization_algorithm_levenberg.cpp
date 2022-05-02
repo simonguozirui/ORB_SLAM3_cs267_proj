@@ -60,18 +60,18 @@ namespace g2o {
     _ni=2.;
     _levenbergIterations = 0;
     _nBad = 0;
-    string filename = "/app/data/quadratic_vs_linear.csv";
+    // string filename = "/app/data/quadratic_vs_linear.csv";
 
-    if(!debug_fout.is_open()) {
-        debug_fout.open(filename);
-    }
-    else {
-        // debug_fout << endl;
-    }
+    // if(!debug_fout.is_open()) {
+    //     debug_fout.open(filename);
+    // }
+    // else {
+    //     // debug_fout << endl;
+    // }
 
-    if(!debug_fout.is_open()) {
-        cerr << "Error opening file: " << filename << endl;
-    }
+    // if(!debug_fout.is_open()) {
+    //     cerr << "Error opening file: " << filename << endl;
+    // }
   }
 
   OptimizationAlgorithmLevenberg::~OptimizationAlgorithmLevenberg()

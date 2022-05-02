@@ -239,7 +239,7 @@ void LoopClosing::Run()
             double t_loopclosing = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t1 - t0).count();
             double t_period = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t0 - t_laststart).count();
             t_laststart = t0;
-            cout << "Loop closing: " << t_period << ", " << t_loopclosing << endl;
+            cout << "[Profiling] [Task Level] Loop closing after " << t_period << ", for " << t_loopclosing << endl;
             // END DEBUG
         
         }
@@ -1694,7 +1694,7 @@ void LoopClosing::MergeLocal()
 
     // Project MapPoints observed in the neighborhood of the merge keyframe
     // into the current keyframe and neighbors using corrected poses.
-    // Fuse duplications.
+// Fuse duplications.
     SearchAndFuse(vCorrectedSim3, vpCheckFuseMapPoint);
 
 #ifdef COMPILEDWITHC11
@@ -2681,7 +2681,7 @@ void LoopClosing::RunGlobalBundleAdjustment(Map* pActiveMap, unsigned long nLoop
     double t_gba = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t1 - t0).count();
     double t_period = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t0 - t_lastglobalBA).count();
     t_lastglobalBA = t0;
-    cout << "Global BA: " << t_period << ", " << t_gba << endl;
+    cout << "[Profiling] [Task Level] Global BA after " << t_period << ", for " << t_gba << endl;
     // END DEBUG
 }
 

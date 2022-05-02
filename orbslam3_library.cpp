@@ -556,7 +556,7 @@ bool performTracking()
     double t_period = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t0 - t_lasttracking).count();
 
     t_lasttracking = t0;
-    cout << "Tracking: " << t_period << ", " << t_tracking << endl;
+    cout << "[Profiling] [Task Level] Tracking after " << t_period << ", for " << t_tracking << endl;
     // END DEBUG
 
     return true;

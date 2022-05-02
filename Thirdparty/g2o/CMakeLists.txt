@@ -47,13 +47,20 @@ ENDIF(UNIX)
 FIND_PACKAGE(OpenMP)
 SET(G2O_USE_OPENMP OFF CACHE BOOL "Build g2o with OpenMP support (EXPERIMENTAL)")
 # SET(G2O_USE_OPENMP OFF CACHE BOOL "Build g2o with OpenMP support (EXPERIMENTAL)")
-IF(OPENMP_FOUND AND G2O_USE_OPENMP)
-  SET (G2O_OPENMP 1)
+# IF(OPENMP_FOUND AND G2O_USE_OPENMP)
+#   SET (G2O_OPENMP 1)
+#   SET(g2o_C_FLAGS "${g2o_C_FLAGS} ${OpenMP_C_FLAGS}")
+#   SET(g2o_CXX_FLAGS "${g2o_CXX_FLAGS} -DEIGEN_DONT_PARALLELIZE ${OpenMP_CXX_FLAGS}")
+#   MESSAGE(STATUS "Compiling with OpenMP support")
+#   MESSAGE(STATUS "Compiling with ${g2o_C_FLAGS}")
+# ENDIF(OPENMP_FOUND AND G2O_USE_OPENMP)
+IF(OPENMP_FOUND AND SCHUR_USE_OPENMP)
+  SET (SCHUR_OPENMP 1)
   SET(g2o_C_FLAGS "${g2o_C_FLAGS} ${OpenMP_C_FLAGS}")
   SET(g2o_CXX_FLAGS "${g2o_CXX_FLAGS} -DEIGEN_DONT_PARALLELIZE ${OpenMP_CXX_FLAGS}")
-  MESSAGE(STATUS "Compiling with OpenMP support")
+  MESSAGE(STATUS "Compiling with Schur OpenMP support")
   MESSAGE(STATUS "Compiling with ${g2o_C_FLAGS}")
-ENDIF(OPENMP_FOUND AND G2O_USE_OPENMP)
+ENDIF(OPENMP_FOUND AND SCHUR_USE_OPENMP)
 
 # Compiler specific options for gcc
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
@@ -178,4 +185,8 @@ g2o/stuff/os_specific.h
 g2o/stuff/string_tools.cpp
 g2o/stuff/property.cpp       
 g2o/stuff/property.h       
+g2o/stuff/profile.cpp
+g2o/stuff/profile.h
+g2o/stuff/thread_coord.cpp
+g2o/stuff/thread_coord.h
 )

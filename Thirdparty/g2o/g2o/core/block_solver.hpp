@@ -28,10 +28,16 @@
 #include <Eigen/LU>
 #include <fstream>
 #include <iomanip>
+#include <omp.h>
 
 #include "../stuff/timeutil.h"
 #include "../stuff/macros.h"
 #include "../stuff/misc.h"
+#include "../stuff/profile.h"
+#include "../stuff/thread_coord.h"
+
+extern ProfileOption profile_option;
+extern ThreadCoord thread_coord;
 
 namespace g2o {
 
@@ -85,9 +91,9 @@ void BlockSolver<Traits>::resize(int* blockPoseIndices, int numPoseBlocks,
     _Hpl=new PoseLandmarkHessianType(blockPoseIndices, blockLandmarkIndices, numPoseBlocks, numLandmarkBlocks);
     _HplCCS = new SparseBlockMatrixCCS<PoseLandmarkMatrixType>(_Hpl->rowBlockIndices(), _Hpl->colBlockIndices());
     _HschurTransposedCCS = new SparseBlockMatrixCCS<PoseMatrixType>(_Hschur->colBlockIndices(), _Hschur->rowBlockIndices());
-#ifdef G2O_OPENMP
+// #ifdef G2O_OPENMP
     _coefficientsMutex.resize(numPoseBlocks);
-#endif
+// #endif
   }
 }
 
@@ -364,7 +370,6 @@ bool BlockSolver<Traits>::solve(){
     return ok;
   }
 
-
   // backup the coefficient matrix
   double t=get_monotonic_time();
 
@@ -374,10 +379,42 @@ bool BlockSolver<Traits>::solve(){
 
   //_DInvSchur->clear();
   memset (_coefficients, 0, _sizePoses*sizeof(double));
-# ifdef G2O_OPENMP
-# pragma omp parallel for default (shared) schedule(dynamic, 10)
-# endif
+  
+  // Timing
+  double t_Dinv = 0;
+  double t_BDinv = 0;
+  double t_BDinvBj = 0;
+
+  double t_mutex_total = 0;
+
+  double t_loop_1_start = 0;
+  double t_loop_1_end = 0;
+  double t_loop_1_sum = 0;
+  double t_loop_2_start = 0;
+  double t_loop_2_end = 0;
+  double t_loop_2_sum = 0;
+  double t_loop_3_start = 0;
+  double t_loop_3_end = 0;
+  double t_loop_3_sum = 0;
+  
+  int num_iter = 0;
+  omp_set_num_threads(4);
+  // # ifdef G2O_OPENMP
+  // # ifdef SCHUR_OPENMP
+  // # pragma omp parallel for default (shared) schedule(dynamic, 10)
+  // # endif
+  // cout << "[DEBUG] MAX OPEN MP NUM THREAD " << omp_get_max_threads() << endl;
+
+  std::chrono::steady_clock::time_point t_parallel_overall_start = std::chrono::steady_clock::now();
+
+  // # pragma omp parallel for numthreads(12)
+  // #pragma omp parallel for default(shared) schedule(static) num_threads(8)
+  # pragma omp parallel for default (shared) schedule(dynamic, 4)
   for (int landmarkIndex = 0; landmarkIndex < static_cast<int>(_Hll->blockCols().size()); ++landmarkIndex) {
+    // cout << "[DEBUG] openmp threads = " << omp_get_thread_num() << " out of total threads num: " << omp_get_num_threads() << endl;
+    std::chrono::steady_clock::time_point t_loop_1_start = std::chrono::steady_clock::now();
+
+
     const typename SparseBlockMatrix<LandmarkMatrixType>::IntBlockMap& marginalizeColumn = _Hll->blockCols()[landmarkIndex];
     assert(marginalizeColumn.size() == 1 && "more than one block in _Hll column");
 
@@ -385,7 +422,10 @@ bool BlockSolver<Traits>::solve(){
     const LandmarkMatrixType * D = marginalizeColumn.begin()->second;
     assert (D && D->rows()==D->cols() && "Error in landmark matrix");
     LandmarkMatrixType& Dinv = _DInvSchur->diagonal()[landmarkIndex];
+    std::chrono::steady_clock::time_point t_0 = std::chrono::steady_clock::now();
     Dinv = D->inverse();
+    std::chrono::steady_clock::time_point t_1 = std::chrono::steady_clock::now();
+    t_Dinv += std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(t_1 - t_0).count();
 
     LandmarkVectorType  db(D->rows());
     for (int j=0; j<D->rows(); ++j) {
@@ -396,19 +436,33 @@ bool BlockSolver<Traits>::solve(){
     assert((size_t)landmarkIndex < _HplCCS->blockCols().size() && "Index out of bounds");
     const typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn& landmarkColumn = _HplCCS->blockCols()[landmarkIndex];
 
+    std::chrono::steady_clock::time_point t_loop_1_end = std::chrono::steady_clock::now();
+    t_loop_1_sum += std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t_loop_1_end - t_loop_1_start).count();
+
     for (typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn::const_iterator it_outer = landmarkColumn.begin();
         it_outer != landmarkColumn.end(); ++it_outer) {
+
+      std::chrono::steady_clock::time_point t_loop_2_start = std::chrono::steady_clock::now();
+
       int i1 = it_outer->row;
 
       const PoseLandmarkMatrixType* Bi = it_outer->block;
       assert(Bi);
 
+      std::chrono::steady_clock::time_point t_2 = std::chrono::steady_clock::now();
       PoseLandmarkMatrixType BDinv = (*Bi)*(Dinv);
+      std::chrono::steady_clock::time_point t_3 = std::chrono::steady_clock::now();
+      t_BDinv += std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t_3 - t_2).count();
+
       assert(_HplCCS->rowBaseOfBlock(i1) < _sizePoses && "Index out of bounds");
       typename PoseVectorType::MapType Bb(&_coefficients[_HplCCS->rowBaseOfBlock(i1)], Bi->rows());
-#    ifdef G2O_OPENMP
+// #    ifdef G2O_OPENMP
+// #    ifdef SCHUR_OPENMP
+      std::chrono::steady_clock::time_point t_mutex_before = std::chrono::steady_clock::now();
       ScopedOpenMPMutex mutexLock(&_coefficientsMutex[i1]);
-#    endif
+      std::chrono::steady_clock::time_point t_mutex_after = std::chrono::steady_clock::now();
+// #    endif
+      num_iter++;
       Bb.noalias() += (*Bi)*db;
 
       assert(i1 >= 0 && i1 < static_cast<int>(_HschurTransposedCCS->blockCols().size()) && "Index out of bounds");
@@ -416,7 +470,14 @@ bool BlockSolver<Traits>::solve(){
 
       typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::RowBlock aux(i1, 0);
       typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn::const_iterator it_inner = lower_bound(landmarkColumn.begin(), landmarkColumn.end(), aux);
+      
+
+      std::chrono::steady_clock::time_point t_loop_2_end = std::chrono::steady_clock::now();
+      t_loop_2_sum += std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t_loop_2_end - t_loop_2_start).count();
+
       for (; it_inner != landmarkColumn.end(); ++it_inner) {
+        std::chrono::steady_clock::time_point t_loop_3_start = std::chrono::steady_clock::now();
+
         int i2 = it_inner->row;
         const PoseLandmarkMatrixType* Bj = it_inner->block;
         assert(Bj); 
@@ -425,10 +486,29 @@ bool BlockSolver<Traits>::solve(){
         assert(targetColumnIt != _HschurTransposedCCS->blockCols()[i1].end() && targetColumnIt->row == i2 && "invalid iterator, something wrong with the matrix structure");
         PoseMatrixType* Hi1i2 = targetColumnIt->block;//_Hschur->block(i1,i2);
         assert(Hi1i2);
+        std::chrono::steady_clock::time_point t_4 = std::chrono::steady_clock::now();
         (*Hi1i2).noalias() -= BDinv*Bj->transpose();
+        std::chrono::steady_clock::time_point t_5 = std::chrono::steady_clock::now();
+        t_BDinvBj += std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t_5 - t_4).count();
+      
+        std::chrono::steady_clock::time_point t_loop_3_end = std::chrono::steady_clock::now();
+        t_loop_3_sum += std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t_loop_3_end - t_loop_3_start).count();
+
       }
+      std::chrono::steady_clock::time_point t_serial_region_end = std::chrono::steady_clock::now();
+      t_mutex_total += std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t_mutex_after - t_mutex_before).count();
+
     }
   }
+
+  std::chrono::steady_clock::time_point t_parallel_overall_end = std::chrono::steady_clock::now();
+  double t_parallel_overall =  std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(t_parallel_overall_end - t_parallel_overall_start).count();
+
+  // if (profile_option.schur_profile == true) {
+  //   cout << "[Profiling] Generate Schur solving P " << _sizePoses << " L " << _sizeLandmarks << " Dinv " << t_Dinv << " BDinv " << t_BDinv << " BDinvBj " << t_BDinvBj << endl;
+  // }
+
+
   //cerr << "Solve [marginalize] = " <<  get_monotonic_time()-t << endl;
 
   // _bschur = _b for calling solver, and not touching _b
@@ -452,14 +532,20 @@ bool BlockSolver<Traits>::solve(){
 
   t=get_monotonic_time();
   bool solvedPoses = _linearSolver->solve(*_Hschur, _x, _bschur);
-  if (globalStats) {
+  if (globalStats && thread_coord.local_mapping_id == std::this_thread::get_id() 
+    && thread_coord.is_local_ba) {
     globalStats->timeLinearSolver = get_monotonic_time() - t;
     globalStats->hessianPoseDimension = _Hpp->cols();
     globalStats->hessianLandmarkDimension = _Hll->cols();
     globalStats->hessianDimension = globalStats->hessianPoseDimension + globalStats->hessianLandmarkDimension;
 
-    cout << "[DEBUG] global stats (block_solver.hpp), globalStats = " <<  *globalStats << endl;
-  }
+    cout << "[DEBUG] global stats (block_solver.hpp), globalStats = " <<  *globalStats << " fullHessianDim= " << globalStats->hessianLandmarkDimension + globalStats->hessianPoseDimension <<
+      " overallParallelTime= " << t_parallel_overall << " mutexTotalWaitTime= " << t_mutex_total << " numIterSerial= " << num_iter << 
+      " timeLoop1Sum = " << t_loop_1_sum << " timeLoop2Sum = " << t_loop_2_sum << " timeLoop2Sum = " << t_loop_2_sum << endl;
+  } 
+  // else {
+  //   cout << "[DEBUG] global stats not printed " << endl;
+  // }
   //cerr << "Solve [decompose and solve] = " <<  get_monotonic_time()-t << endl;
 
   if (! solvedPoses)
