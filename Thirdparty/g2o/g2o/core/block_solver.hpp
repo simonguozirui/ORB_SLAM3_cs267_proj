@@ -469,7 +469,7 @@ omp_set_num_threads(omp_num_threads);
         double t_end_load=get_monotonic_time();
         auto res = orig - temp;
         // double t_end_sub=get_monotonic_time();
-        (*Hi1i2).noalias() = res; // DEBUG
+        // (*Hi1i2).noalias() = res; // DEBUG
         // double t_end_store=get_monotonic_time();
 
         if(thread_coord.is_local_ba) {
