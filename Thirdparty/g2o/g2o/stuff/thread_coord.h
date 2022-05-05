@@ -8,7 +8,7 @@
 
 struct ThreadCoord {
     std::thread::id local_mapping_id;
-    int omp_num_threads = 4;
+    int omp_num_threads = 1;
     double t_loop1 = 0, t_loop2 = 0, t_loop3 = 0;
     double t_schur_load = 0;
     std::vector<double> t_overhead;
@@ -21,6 +21,8 @@ struct ThreadCoord {
     bool is_full_inertial_ba = false;
     bool is_local_ba = false;
     bool is_inertial_opt = false;
+    int dataset_id = 0;
+    int sample_interval = 4;
 
     std::string filename = "/app/data/omp_" + std::to_string(omp_num_threads) + "_load_opt.csv";
 };

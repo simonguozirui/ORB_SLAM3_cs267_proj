@@ -553,14 +553,47 @@ if(thread_coord.is_local_ba && this_thread::get_id() == thread_coord.local_mappi
   // schur thing
 
   // DEBUG
-  // if(thread_coord.local_mapping_id == std::this_thread::get_id() && thread_coord.is_full_inertial_ba) {
-  //     _Hpp->writeOctave("/app/data/Hpp_fullInertialBA.oct", true);
-  //     _Hll->writeOctave("/app/data/Hll_fullInertialBA.oct", true);
-  //     _Hpl->writeOctave("/app/data/Hpl_fullInertialBA.oct", false);
-  //     _Hschur->writeOctave("/app/data/Hschur_fullInertialBA.oct", false);
-  //     debug_fout << "fullIntertialBA" << endl;
-  //     // cout << "[DEBUG] In block_solver.hpp, doing schur" << endl;
-  // }
+  if(thread_coord.local_mapping_id == std::this_thread::get_id() && thread_coord.is_local_ba) {
+
+    if ((thread_coord.dataset_id % thread_coord.sample_interval) == 0)  {
+       // _Hpp->writeOctave(("/app/data/schur_dataset/_" +  std::to_string(thread_coord.dataset_id) + "_" + std::to_string(_Hpp->cols()) + "_" + std::to_string(_Hll->cols()) + "Hpp.oct").c_str(), true);
+      int effective_seq_num = (int) thread_coord.dataset_id / thread_coord.sample_interval;
+      string matrix_output_path =  ("/app/data/schur_dataset/" +  std::to_string(effective_seq_num) + "_" + std::to_string(_Hpp->cols()) + "_" + std::to_string(_Hll->cols()) + "_").c_str();
+  
+      _Hpp->writeOctave((matrix_output_path + "Hpp.oct").c_str(), true);
+      _Hll->writeOctave((matrix_output_path + "Hll.oct").c_str(), true);
+      _Hpl->writeOctave((matrix_output_path + "Hpl.oct").c_str(), false);
+      _Hschur->writeOctave((matrix_output_path + "Hschur.oct").c_str(), false);
+      
+      // _b->writeOctave((matrix_output_path + "b.oct").c_str(), false);
+
+      FILE *b_fp = fopen((matrix_output_path + "b.out").c_str(), "ab+");
+      fprintf(b_fp, "%d\n", _sizePoses);
+      for (int i = 0; i < _sizePoses; ++i) {
+        fprintf(b_fp, "%lf\n", _b[i]);
+      }
+
+      fclose(b_fp);
+
+      // _bschur->writeOctave((matrix_output_path + "bschur.oct").c_str(), false);
+
+
+      FILE *bschur_fp = fopen((matrix_output_path + "bschur.out").c_str(), "ab+");
+      fprintf(bschur_fp, "%d\n", _sizePoses);
+      for (int i = 0; i < _sizePoses; ++i) {
+        fprintf(bschur_fp, "%lf\n", _bschur[i]);
+      }
+
+      fclose(bschur_fp);
+      
+      // cout << matrix_output_path <<  endl;
+      // cout << "[DEBUG] In block_solver.hpp, doing schur" << endl;
+    }
+
+    thread_coord.dataset_id = thread_coord.dataset_id+1;
+
+       
+  }
 
   t=get_monotonic_time();
   bool solvedPoses = _linearSolver->solve(*_Hschur, _x, _bschur);
@@ -665,7 +698,7 @@ else {
   double t_last_end_loop2=t_start_schur;
 // # ifdef G2O_OPENMP
 # ifdef SCHUR_OMP
-  int thread_num=0;
+  int thread_num=1;
 omp_set_num_threads(omp_num_threads);
 # pragma omp parallel for default (shared) schedule(static)
 # endif
