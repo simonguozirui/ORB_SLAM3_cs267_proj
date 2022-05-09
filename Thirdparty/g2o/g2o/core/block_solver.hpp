@@ -558,16 +558,17 @@ if(thread_coord.is_local_ba && this_thread::get_id() == thread_coord.local_mappi
     if ((thread_coord.dataset_id % thread_coord.sample_interval) == 0)  {
        // _Hpp->writeOctave(("/app/data/schur_dataset/_" +  std::to_string(thread_coord.dataset_id) + "_" + std::to_string(_Hpp->cols()) + "_" + std::to_string(_Hll->cols()) + "Hpp.oct").c_str(), true);
       int effective_seq_num = (int) thread_coord.dataset_id / thread_coord.sample_interval;
-      string matrix_output_path =  ("/app/data/schur_dataset/" +  std::to_string(effective_seq_num) + "_" + std::to_string(_Hpp->cols()) + "_" + std::to_string(_Hll->cols()) + "_").c_str();
-  
-      _Hpp->writeOctave((matrix_output_path + "Hpp.oct").c_str(), true);
-      _Hll->writeOctave((matrix_output_path + "Hll.oct").c_str(), true);
-      _Hpl->writeOctave((matrix_output_path + "Hpl.oct").c_str(), false);
-      _Hschur->writeOctave((matrix_output_path + "Hschur.oct").c_str(), false);
-      
-      // _b->writeOctave((matrix_output_path + "b.oct").c_str(), false);
+      string matrix_output_path =  "/app/data/schur_dataset/";
+      string matrix_output_info = ("_" + std::to_string(effective_seq_num) + "_" + std::to_string(_Hpp->cols()) + "_" + std::to_string(_Hll->cols())).c_str();
 
-      FILE *b_fp = fopen((matrix_output_path + "b.out").c_str(), "ab+");
+      _Hpp->writeOctave((matrix_output_path + "Hpp" + matrix_output_info + ".oct").c_str(), true);
+      _Hll->writeOctave((matrix_output_path + "Hll" + matrix_output_info + ".oct").c_str(), true);
+      _Hpl->writeOctave((matrix_output_path + "Hpl" + matrix_output_info + ".oct").c_str(), false);
+      _Hschur->writeOctave((matrix_output_path + "Hschur" + matrix_output_info + ".oct").c_str(), true);
+      
+    // _b->writeOctave((matrix_output_path + "b.oct").c_str(), false);
+
+      FILE *b_fp = fopen((matrix_output_path + "b" + matrix_output_info + ".out").c_str(), "ab+");
       fprintf(b_fp, "%d\n", _sizePoses);
       for (int i = 0; i < _sizePoses; ++i) {
         fprintf(b_fp, "%lf\n", _b[i]);
@@ -578,7 +579,7 @@ if(thread_coord.is_local_ba && this_thread::get_id() == thread_coord.local_mappi
       // _bschur->writeOctave((matrix_output_path + "bschur.oct").c_str(), false);
 
 
-      FILE *bschur_fp = fopen((matrix_output_path + "bschur.out").c_str(), "ab+");
+      FILE *bschur_fp = fopen((matrix_output_path + "bschur" + matrix_output_info + ".out").c_str(), "ab+");
       fprintf(bschur_fp, "%d\n", _sizePoses);
       for (int i = 0; i < _sizePoses; ++i) {
         fprintf(bschur_fp, "%lf\n", _bschur[i]);
